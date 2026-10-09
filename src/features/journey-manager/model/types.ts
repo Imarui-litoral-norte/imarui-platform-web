@@ -143,3 +143,20 @@ export interface JourneyQuery {
 
 export type JourneyResponse = PeriodResponse<TmlItem> | PeriodResponse<TrItem> |
   PeriodResponse<TiItem> | PeriodResponse<JlItem>;
+
+export type AnalysisRole = "motorista" | "ajudante";
+export interface JourneyCounts {
+  total: number; attained: number; notAttained: number; pending: number;
+  unavailable: number; evaluated: number; adherence: number | null;
+  distinctMaps: number; expurged: number; anomalies: number;
+}
+export interface JourneyDay { date: string; counts: JourneyCounts }
+export interface JourneyCollaborator {
+  employeeCode: number; employeeName: string; role: string; counts: JourneyCounts;
+}
+export interface JourneyHistory {
+  from: string; to: string; contextFrom: string; contextTo: string; asOf: string;
+  snapshotAt: string | null; population: "MAP" | "MAP_EMPLOYEE"; role: AnalysisRole;
+  hasLiveOrigin: boolean; summary: JourneyCounts; daily: JourneyDay[];
+  collaborators: JourneyCollaborator[]; previousYearDaily: JourneyDay[];
+}

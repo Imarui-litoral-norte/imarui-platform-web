@@ -91,6 +91,29 @@ export function filterMapGroups<T extends JourneyItem>(groups: readonly MapGroup
     (scope === "d0" ? group.date === today : group.date < today));
 }
 
+function searchable(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+}
+
+export function searchMapGroups<T extends JourneyItem>(groups: readonly MapGroup<T>[], text: string): MapGroup<T>[] {
+  const term = searchable(text.trim());
+  if (!term) return [...groups];
+  return groups.filter((group) => searchable([
+    group.map, group.date,
+    ...group.items.flatMap(({ context }) => [context.vehicle, context.plate, context.fleet,
+      context.employeeName, context.employeeCode, context.mapDriverCode]),
+  ].filter((value) => value != null).join(" ")).includes(term));
+}
+
+export function paginateMapGroups<T extends JourneyItem>(groups: readonly MapGroup<T>[],
+                                                          page: number, size: number) {
+  const totalPages = Math.max(1, Math.ceil(groups.length / size));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * size;
+  return { groups: groups.slice(start, start + size), page: currentPage, totalPages,
+    start: groups.length ? start + 1 : 0, end: Math.min(groups.length, start + size) };
+}
+
 export function formatDuration(seconds: number | null | undefined): string {
   if (seconds == null || !Number.isFinite(seconds)) return "—";
   const sign = seconds < 0 ? "−" : "";

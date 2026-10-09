@@ -1,0 +1,5 @@
+export const actionButtonClass = "inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-[color:var(--shell-line-strong)] bg-[var(--shell-surface-muted)] px-3 text-sm font-semibold text-[var(--shell-text)] transition hover:bg-[var(--shell-accent-soft)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--shell-accent)] disabled:cursor-not-allowed disabled:opacity-50";
+
+export const primaryButtonClass = "inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg border border-[color:var(--shell-accent)] bg-[var(--shell-accent)] px-3 text-sm font-semibold text-[var(--shell-contrast-ink)] transition hover:opacity-85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--shell-accent)] disabled:cursor-not-allowed disabled:opacity-50";
+
+export const fieldClass = "h-9 w-full min-w-0 rounded-lg border border-[color:var(--shell-line-strong)] bg-[var(--shell-surface)] px-3 text-sm text-[var(--shell-text)] outline-none placeholder:text-[var(--shell-muted)] focus-visible:outline-2 focus-visible:outline-[var(--shell-accent)]";
