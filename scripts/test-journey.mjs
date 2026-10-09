@@ -23,6 +23,7 @@ function evaluate(relativePath, dependencies = {}) {
 
 const lib = evaluate("src/features/journey-manager/lib/journeyPresentation.ts");
 const analysis = evaluate("src/features/journey-manager/lib/journeyAnalysis.ts");
+const teamReport = evaluate("src/features/journey-manager/lib/journeyTeamReport.ts", { "./journeyAnalysis": analysis });
 const timeline = evaluate("src/features/journey-manager/lib/journeyTimeline.ts", {
   "./journeyPresentation": lib,
 });
@@ -263,3 +264,40 @@ assert.equal(api.normalizeJourneyHistory(history("2026-10-06", "2026-10-06")).su
 assert.throws(() => api.normalizeJourneyHistory({ ...history("2026-10-06", "2026-10-06"), summary: { ...counts(0, 0), adherence: 0 } }), /inválida/);
 assert.throws(() => api.normalizeJourneyHistory({ ...history("2026-10-06", "2026-10-06"), summary: { ...counts(1, 0), attained: -1 } }), /inválida/);
 console.log("Journey analytical calendar, weighted aggregation and history contract checks passed");
+
+const observation = (map, code, fleet, date, attained, expurgePresent, seconds, journeyExceeded, departed = true) => ({
+  map, employeeCode: code, employeeName: `Motorista ${code}`, role: "motorista", fleet, date,
+  departureDate: departed ? date : null, expurgePresent, seconds, journeyExceeded, counts: counts(attained ? 1 : 0, attained ? 0 : 1),
+});
+const team = [
+  observation(1, 100, "A", "2026-10-03", true, false, 1200, true),
+  observation(2, 100, "B", "2026-10-05", false, true, 1800, false),
+  observation(3, 100, "A", "2026-10-05", false, null, null, null),
+  observation(4, 101, null, "2026-10-06", true, false, 0, false, false),
+];
+const report = teamReport.teamReportRows(team, teamReport.initialTeamReportFilters);
+assert.deepEqual(report[0].dates, ["2026-10-03", "2026-10-05"]); // One date for multiple exits.
+assert.equal(report[0].counts.evaluated, 3);
+assert.equal(report[0].counts.attained, 1);
+assert.equal(report[0].averageSeconds, 1500);
+assert.equal(report[0].journeyExceeded, 1); // Does not mirror TR failures (two).
+assert.equal(report[0].journeyUnknown, 1);
+assert.equal(report[1].averageSeconds, 0);
+assert.deepEqual(report[1].dates, []); // No departure, no fabricated date.
+const filtered = teamReport.teamReportRows(team, { ...teamReport.initialTeamReportFilters, fleets: ["A"], expurge: "not_expurged" });
+assert.equal(filtered[0].counts.evaluated, 1);
+assert.equal(filtered[0].counts.adherence, 100);
+assert.equal(filtered[0].averageSeconds, 1200);
+assert.equal(teamReport.teamReportRows(team, { ...teamReport.initialTeamReportFilters, excluded: [100] }).length, 1);
+assert.equal(teamReport.teamReportRows(team, { ...teamReport.initialTeamReportFilters, excluded: [100, 101] }).length, 0);
+assert.equal(teamReport.teamReportRows(team, { ...teamReport.initialTeamReportFilters, fleets: [""] })[0].employeeCode, 101);
+assert.equal(teamReport.teamReportRows(team, { ...teamReport.initialTeamReportFilters, view: "journey_exceeded" }).length, 1);
+assert.equal(teamReport.teamReportRows(team, { ...teamReport.initialTeamReportFilters, expurge: "expurged" })[0].counts.attained, 0);
+assert.equal(teamReport.formatTeamAverage(2254, "tml"), "37:34");
+assert.equal(teamReport.formatTeamAverage(45420, "jl"), "12:37");
+assert.equal(teamReport.formatTeamAverage(90000, "jl"), "25:00");
+assert.equal(teamReport.formatTeamAverage(null, "ti"), "—");
+assert.equal(api.normalizeJourneyHistory({ ...history("2026-10-03", "2026-10-06"), team }).team.length, 4);
+assert.throws(() => api.normalizeJourneyHistory({ ...history("2026-10-03", "2026-10-06"), team: [{ ...team[0], seconds: -1 }] }), /inválida/);
+assert.throws(() => api.normalizeJourneyHistory({ ...history("2026-10-03", "2026-10-06"), team: [{ ...team[0], journeyExceeded: "sim" }] }), /inválida/);
+console.log("Journey educators report: fleet/expurge filters, dates, means, JL coverage and contract checks passed");

@@ -44,7 +44,7 @@ export function useJourneyHistory(enabled: boolean, query: JourneyQuery, role: A
 
   const data = state.key === key ? state.data : null;
   useEffect(() => {
-    if (!enabled || !data?.summary.pending) return;
+    if (!enabled || !data || (!data.summary.pending && !data.team?.some(row => row.counts.pending > 0))) return;
     const tick = () => {
       if (document.visibilityState === "visible" && Date.now() - lastSuccess.current >= 60_000) void load(true);
     };

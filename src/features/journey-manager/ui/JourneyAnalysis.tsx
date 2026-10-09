@@ -8,6 +8,8 @@ import { annualComparison, countsBetween, emptyCounts, monthLabel, monthlyPoints
   shortDate, weeklyPoints, type AnalysisPoint } from "../lib/journeyAnalysis";
 import type { AnalysisRole, Indicator, JourneyCounts, JourneyHistory } from "../model/types";
 import { actionButtonClass, fieldClass, primaryButtonClass } from "./journeyControls";
+import JourneyTeamReport from "./JourneyTeamReport";
+import type { TeamReportFilters, TeamReportSort } from "../lib/journeyTeamReport";
 
 const EChart = dynamic(() => import("echarts-for-react"), { ssr: false,
   loading: () => <div className="flex h-72 items-center justify-center text-sm text-[var(--shell-muted)]">Preparando gráfico…</div> });
@@ -123,8 +125,10 @@ function Stat({ label, value, detail, tone }: { label: string; value: string; de
   </div>;
 }
 
-export default function JourneyAnalysis({ history, indicator, role, onRoleChange, roleLocked }: {
+export default function JourneyAnalysis({ history, indicator, role, onRoleChange, roleLocked, reportFilters, onReportFiltersChange, reportSort, onReportSortChange }: {
   history: JourneyHistory; indicator: Indicator; role: AnalysisRole; onRoleChange: (role: AnalysisRole) => void; roleLocked: boolean;
+  reportFilters: TeamReportFilters; onReportFiltersChange: (filters: TeamReportFilters) => void;
+  reportSort: TeamReportSort; onReportSortChange: (sort: TeamReportSort) => void;
 }) {
   const { ref, palette } = usePalette();
   const [sort, setSort] = useState("adherence");
@@ -159,8 +163,6 @@ export default function JourneyAnalysis({ history, indicator, role, onRoleChange
     series: [{ name: "Mês selecionado", type: "bar", barMaxWidth: 30, itemStyle: { color: palette.positive, borderRadius: [4, 4, 0, 0] }, data: annual.map(row => row.current.adherence) },
     { name: "Mesmo mês · ano anterior", type: "bar", barMaxWidth: 30, itemStyle: { color: palette.accent, borderRadius: [4, 4, 0, 0] }, data: annual.map(row => row.previous.adherence) }] };
   const closedCoverage = summary.total ? summary.evaluated * 100 / summary.total : null;
-  const worst = people.filter(person => person.counts.evaluated > 0 && person.counts.notAttained > 0)
-    .sort((a, b) => b.counts.notAttained - a.counts.notAttained || (a.counts.adherence ?? 0) - (b.counts.adherence ?? 0)).slice(0, 5);
   const weekDays = history.daily.filter(day => new Date(day.date + "T12:00:00Z").getUTCDay() !== 0);
   const selectedWeekCounts = countsBetween(weekDays, history.from, history.to);
   const weekCounts = countsBetween(weekDays,
@@ -213,13 +215,8 @@ export default function JourneyAnalysis({ history, indicator, role, onRoleChange
         </div>)}</div>
       </ChartCard>
     </div>
-    <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-      <section className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-5"><h3 className="font-semibold">Onde concentrar a conferência</h3>
-        <p className="mt-1 text-xs text-[var(--shell-muted)]">Maiores volumes de resultados não atingidos na seleção. Observe a quantidade de mapas antes de comparar pessoas.</p>
-        {worst.length ? <div className="mt-4 space-y-3">{worst.map(person => <div key={person.employeeCode} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-          <span>{person.employeeName}</span><span className="tabular-nums text-[var(--shell-muted)]">{person.counts.notAttained} não atingidos · {person.counts.evaluated} avaliados · <strong style={{ color: palette.negative }}>{percent(person.counts.adherence)}</strong></span>
-        </div>)}</div> : <p className="mt-4 text-sm text-[var(--shell-muted)]">Não há resultados fechados fora do esperado nesta seleção.</p>}
-      </section>
+    <JourneyTeamReport history={history} indicator={indicator} filters={reportFilters} onFiltersChange={onReportFiltersChange} sort={reportSort} onSortChange={onReportSortChange} />
+    <div>
       <section className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-5"><h3 className="flex items-center gap-2 font-semibold"><CircleHelp size={16} /> Leitura dos dados</h3>
         <ul className="mt-3 space-y-2 text-xs leading-5 text-[var(--shell-muted)]"><li>Sem resultado não equivale a 0% de aderência. Ciclos abertos aguardam o fechamento oficial.</li>
           <li>{summary.expurged} observações com expurgo e {summary.anomalies} com anomalia temporal no recorte. O filtro de expurgo é respeitado.</li>

@@ -11,6 +11,7 @@ import JourneyAnalysis from "./JourneyAnalysis";
 import { useJourneyHistory } from "./useJourneyHistory";
 import { JourneyMapDialog, JourneyMapRow } from "./JourneyMapRow";
 import { actionButtonClass, fieldClass, primaryButtonClass } from "./journeyControls";
+import { initialTeamReportFilters, initialTeamReportSort, type TeamReportFilters, type TeamReportSort } from "../lib/journeyTeamReport";
 
 const tabs: { id: Indicator; label: string; description: string }[] = [
   { id: "tml", label: "TML", description: "Tempo de matinal e liberação" },
@@ -50,6 +51,8 @@ export default function JourneyManager() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"accompaniment" | "analysis">("accompaniment");
   const [analysisRole, setAnalysisRole] = useState<AnalysisRole>("motorista");
+  const [reportFilters, setReportFilters] = useState<TeamReportFilters>(initialTeamReportFilters);
+  const [reportSort, setReportSort] = useState<TeamReportSort>(initialTeamReportSort);
   const effectiveRole = query.role === "all" ? analysisRole : query.role;
   const analysis = useJourneyHistory(view === "analysis", query, effectiveRole, search, scope);
   const [page, setPage] = useState(1);
@@ -269,7 +272,8 @@ export default function JourneyManager() {
         <span className="text-sm text-[var(--shell-muted)] lg:text-right">{activeRefreshing ? "Atualizando snapshot… · " : ""}Snapshot: {formatDateTime(activeSnapshot)}</span>
       </div>
       {view === "analysis" && !analysis.loading && analysis.data && <JourneyAnalysis history={analysis.data}
-        indicator={query.indicator} role={effectiveRole} onRoleChange={setAnalysisRole} roleLocked={query.role !== "all"} />}
+        indicator={query.indicator} role={effectiveRole} onRoleChange={setAnalysisRole} roleLocked={query.role !== "all"}
+        reportFilters={reportFilters} onReportFiltersChange={setReportFilters} reportSort={reportSort} onReportSortChange={setReportSort} />}
       {view === "accompaniment" && !loading && !error && data && <>
         {visibleGroups.length === 0 ? <p className="rounded-2xl border border-dashed border-[color:var(--shell-line)] p-8 text-center text-sm">Nenhum mapa encontrado no período e filtros selecionados.</p> :
           <div className="space-y-3">{pagination.groups.map((group) =>

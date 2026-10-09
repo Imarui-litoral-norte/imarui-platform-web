@@ -59,7 +59,14 @@ export function normalizeJourneyHistory(value: unknown): JourneyHistory {
     typeof payload.hasLiveOrigin !== "boolean" || (payload.snapshotAt !== null && typeof payload.snapshotAt !== "string") ||
     !validCounts(payload.summary) || !Array.isArray(payload.daily) || !Array.isArray(payload.previousYearDaily) || !Array.isArray(payload.collaborators) ||
     ![...payload.daily, ...payload.previousYearDaily].every(d => typeof d.date === "string" && validCounts(d.counts)) ||
-    !payload.collaborators.every(c => typeof c.employeeCode === "number" && typeof c.employeeName === "string" && validCounts(c.counts)))
+    !payload.collaborators.every(c => typeof c.employeeCode === "number" && typeof c.employeeName === "string" && validCounts(c.counts)) ||
+    (payload.team !== undefined && (!Array.isArray(payload.team) || !payload.team.every(row =>
+      typeof row.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.date) && Number.isInteger(row.map) && row.map > 0 &&
+      Number.isInteger(row.employeeCode) && typeof row.employeeName === "string" && typeof row.role === "string" &&
+      (row.fleet === null || typeof row.fleet === "string") && (row.departureDate === null || (typeof row.departureDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(row.departureDate))) &&
+      (row.expurgePresent === null || typeof row.expurgePresent === "boolean") && validCounts(row.counts) &&
+      (row.seconds === null || (typeof row.seconds === "number" && Number.isFinite(row.seconds) && row.seconds >= 0)) &&
+      (row.journeyExceeded === null || typeof row.journeyExceeded === "boolean")))))
     throw new Error("Resposta analítica inválida.");
   return payload;
 }

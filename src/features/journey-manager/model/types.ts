@@ -154,9 +154,15 @@ export interface JourneyDay { date: string; counts: JourneyCounts }
 export interface JourneyCollaborator {
   employeeCode: number; employeeName: string; role: string; counts: JourneyCounts;
 }
+export interface JourneyTeamObservation {
+  date: string; map: number; employeeCode: number; employeeName: string; role: string;
+  fleet: string | null; departureDate: string | null; expurgePresent: boolean | null;
+  counts: JourneyCounts; seconds: number | null; journeyExceeded: boolean | null;
+}
 export interface JourneyHistory {
   from: string; to: string; contextFrom: string; contextTo: string; asOf: string;
   snapshotAt: string | null; population: "MAP" | "MAP_EMPLOYEE"; role: AnalysisRole;
   hasLiveOrigin: boolean; summary: JourneyCounts; daily: JourneyDay[];
   collaborators: JourneyCollaborator[]; previousYearDaily: JourneyDay[];
+  team?: JourneyTeamObservation[];
 }
