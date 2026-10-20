@@ -1,5 +1,5 @@
 import { authApi } from "@/features/auth/lib/authApi";
-import { saveAuthSession } from "@/features/auth/lib/authSession";
+import { clearAuthSession, saveAuthSession } from "@/features/auth/lib/authSession";
 import { isValidCpf, onlyDigits } from "@/features/auth/lib/cpf";
 
 export function normalizeCpf(value) {
@@ -24,12 +24,8 @@ export async function persistSession(tokens) {
       profile,
       profileLoaded: true,
     };
-  } catch {
-    saveAuthSession(tokens, null);
-
-    return {
-      profile: null,
-      profileLoaded: false,
-    };
+  } catch (error) {
+    clearAuthSession();
+    throw error;
   }
 }
