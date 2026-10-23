@@ -10,6 +10,10 @@ const SPO_CONTEXT_LABELS = Object.fromEntries(
 );
 
 const BREADCRUMB_LABELS = {
+  [APP_ROUTES.IAM]: "IAM",
+  [APP_ROUTES.IAM_IDENTITY]: "Identidade",
+  [APP_ROUTES.IAM_AUTHENTICATION]: "Autenticação",
+  [APP_ROUTES.IAM_AUTHORIZATION]: "Autorização",
   [APP_ROUTES.DPO_DTO_MANAGER]: "Gerenciador de DTOs",
   [APP_ROUTES.DPO_DELIVERY_ROUTE_CME]: "Acompanhamento de rota CME",
   [APP_ROUTES.DPO_JOURNEY_MANAGER]: "Gerenciador de Jornada",
@@ -48,13 +52,22 @@ export const APP_SIDEBAR_ITEMS = [
     icon: "clipboard",
   },
   {
-    id: "authorization-roles",
-    label: "Autorizacao",
-    description: "Controle de roles e acessos dos usuarios.",
-    type: "link",
-    href: APP_ROUTES.AUTHORIZATION_ROLES,
+    id: "iam",
+    label: "IAM",
+    description: "Identidade, autenticação e autorização.",
+    type: "panel",
+    activePath: APP_ROUTES.IAM,
     icon: "service",
-    requiredAuthorities: ["AUTHORIZATION_ROLE_READ"],
+    panel: {
+      eyebrow: "IAM",
+      title: "Identidades e acessos",
+      body: "Administre dados cadastrais, sessões e políticas de acesso.",
+    },
+    children: [
+      { id: "iam-identity", label: "Identidade", description: "Diretório e dados cadastrais.", href: APP_ROUTES.IAM_IDENTITY },
+      { id: "iam-authentication", label: "Autenticação", description: "Sessões e recuperação de acesso.", href: APP_ROUTES.IAM_AUTHENTICATION },
+      { id: "iam-authorization", label: "Autorização", description: "Roles, permissões e vínculos.", href: APP_ROUTES.IAM_AUTHORIZATION },
+    ],
   },
   {
     id: "server-manager",
@@ -226,12 +239,12 @@ export function buildAppBreadcrumbs(pathname) {
     if (segments[0] === getRouteSegment(APP_ROUTES.SPO)) {
       items.push({
         href: currentPath,
-        label: SPO_CONTEXT_LABELS[segment] || formatBreadcrumbLabel(segment),
+        label: BREADCRUMB_LABELS[currentPath] || SPO_CONTEXT_LABELS[segment] || formatBreadcrumbLabel(segment),
       });
       continue;
     }
 
-    items.push({ href: currentPath, label: formatBreadcrumbLabel(segment) });
+    items.push({ href: currentPath, label: BREADCRUMB_LABELS[currentPath] || formatBreadcrumbLabel(segment) });
   }
 
   return items;
@@ -245,7 +258,8 @@ export function resolveAppShellLayout(pathname) {
     };
   }
 
-  if (DPO_MANAGER_ROUTES.some((route) => matchesRoute(pathname, route))) {
+  if (matchesRoute(pathname, APP_ROUTES.IAM) ||
+      DPO_MANAGER_ROUTES.some((route) => matchesRoute(pathname, route))) {
     return {
       contentClassName: DEFAULT_CONTENT_CLASS_NAME,
       mainClassName: DPO_MANAGER_MAIN_CLASS_NAME,

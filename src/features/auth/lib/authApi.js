@@ -1,269 +1,90 @@
-import {
-  clearAuthSession,
-  getOrCreateDeviceId,
-  readAuthSession,
-  saveAuthSession,
-} from "@/features/auth/lib/authSession";
-import {
-  buildTestAuthProfile,
-  buildTestAuthTokens,
-  isTestAccessToken,
-  isTestAuthSession,
-} from "@/features/auth/lib/testAuth";
+import { clearAuthSession, readAuthSession, saveAuthSession } from "@/features/auth/lib/authSession";
 import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
-
-const AUTHENTICATION_BASE_PATH = "/api/v1/authentication";
-const PASSWORD_RECOVERY_REQUESTS_PATH =
-  `${AUTHENTICATION_BASE_PATH}/password-recovery/requests`;
-
-function buildUrl(path) {
-  const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-  return buildGatewayUrl(normalizedPath);
-}
-
-function normalizeProfilePayload(profile) {
-  if (!profile || typeof profile !== "object") {
-    return profile;
-  }
-
-  const nestedProfile = [
-    profile.user,
-    profile.usuario,
-    profile.profile,
-    profile.principal,
-    profile.account,
-  ].find((candidate) => candidate && typeof candidate === "object");
-
-  const mergedProfile = nestedProfile
-    ? {
-        ...nestedProfile,
-        ...profile,
-      }
-    : profile;
-
-  const authorities = Array.isArray(mergedProfile.authorities)
-    ? mergedProfile.authorities
-    : Array.isArray(nestedProfile?.authorities)
-      ? nestedProfile.authorities
-      : [];
-  const roles =
-    Array.isArray(mergedProfile.roles) && mergedProfile.roles.length > 0
-      ? mergedProfile.roles
-      : authorities;
-
-  return {
-    ...nestedProfile,
-    ...mergedProfile,
-    authorities,
-    roles,
-  };
-}
-
-async function parseResponseBody(response) {
-  if (response.status === 204) {
-    return null;
-  }
-
-  const contentType = response.headers.get("content-type") || "";
-
-  if (contentType.includes("application/json")) {
-    return response.json();
-  }
-
+const AUTH = "/api/iam/authentication";
+let refreshInFlight;
+async function bodyOf(response) {
   const text = await response.text();
-  return text ? text : null;
+  if (!text) return null;
+  try { return JSON.parse(text); } catch {
+    if (response.ok) throw new Error("O serviço retornou uma resposta inválida.");
+    return { detail: text };
+  }
 }
-
-function extractErrorMessage(body, response) {
-  if (typeof body === "string" && body.trim()) {
-    return body;
-  }
-
-  if (body && typeof body === "object") {
-    const candidates = [
-      body.mensagem,
-      body.message,
-      body.error,
-      body.detail,
-      body.title,
-    ];
-
-    for (const candidate of candidates) {
-      if (typeof candidate === "string" && candidate.trim()) {
-        return candidate;
-      }
-    }
-  }
-
-  return `Nao foi possivel concluir a solicitacao (${response.status}).`;
+async function csrfToken() {
+  const response = await fetch(buildGatewayUrl(`${AUTH}/csrf`), { credentials: "include", cache: "no-store" });
+  const body = await bodyOf(response);
+  if (!response.ok || !body?.token) throw Object.assign(new Error("Não foi possível preparar a proteção CSRF."), { status: response.status });
+  return body.token;
 }
-
-function buildForbiddenMessage(path) {
-  if (path === `${AUTHENTICATION_BASE_PATH}/register`) {
-    return "Cadastro recusado pelo servico de autenticacao. Verifique se o CPF informado esta autorizado para criacao de acesso.";
-  }
-
-  if (path.startsWith(PASSWORD_RECOVERY_REQUESTS_PATH)) {
-    return "A recuperacao de senha foi recusada pelo servico de autenticacao.";
-  }
-
-  return "A solicitacao foi recusada pelo servico de autenticacao.";
-}
-
-function buildStoredTestProfile(session) {
-  return session?.profile || buildTestAuthProfile();
-}
-
-async function request(path, options = {}) {
-  const {
-    method = "GET",
-    body,
-    authenticated = false,
-    accessToken,
-    retryOnAuthFailure = authenticated && !accessToken,
-  } = options;
-  const headers = {
-    Accept: "application/json",
-    "X-Device-Id": getOrCreateDeviceId(),
-  };
-
-  if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
-  }
-
-  const storedSession =
-    authenticated && !accessToken ? readAuthSession() : null;
-  const tokenToUse = accessToken || storedSession?.accessToken;
-
-  if (authenticated && tokenToUse) {
-    headers.Authorization = `Bearer ${tokenToUse}`;
-  }
-
+export async function authRequest(path, { method = "GET", body, authenticated = false, accessToken, csrf = false, signal, retry = true } = {}) {
+  const headers = { Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
+  const token = accessToken || (authenticated ? readAuthSession()?.accessToken : null);
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (csrf) headers["X-XSRF-TOKEN"] = await csrfToken();
   let response;
-
-  try {
-    response = await fetch(buildUrl(path), {
-      method,
-      headers,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    });
-  } catch {
-    throw new Error("Nao foi possivel conectar ao core-api de autenticacao.");
-  }
-
-  const payload = await parseResponseBody(response);
-
+  try { response = await fetch(buildGatewayUrl(path), { method, headers, credentials: "include", cache: "no-store", signal,
+    body: body !== undefined ? JSON.stringify(body) : undefined }); }
+  catch (error) { if (error?.name === "AbortError") throw error; throw new Error("Não foi possível conectar ao gateway."); }
+  const payload = await bodyOf(response);
   if (!response.ok) {
-    if (authenticated && response.status === 401 && retryOnAuthFailure) {
+    if (response.status === 401 && authenticated && !accessToken && retry) {
       await refreshSession();
-      return request(path, {
-        ...options,
-        accessToken: undefined,
-        retryOnAuthFailure: false,
-      });
+      return authRequest(path, { method, body, authenticated, csrf, signal, retry: false });
     }
-
-    if (response.status === 403 && !payload) {
-      throw new Error(buildForbiddenMessage(path));
-    }
-
-    throw new Error(extractErrorMessage(payload, response));
+    throw Object.assign(new Error(payload?.detail || payload?.message || payload?.title || `Solicitação recusada (${response.status}).`),
+      { status: response.status, code: payload?.code });
   }
-
   return payload;
 }
-
-export async function refreshSession() {
-  const session = readAuthSession();
-
-  if (isTestAuthSession(session)) {
-    return saveAuthSession(buildTestAuthTokens(), buildStoredTestProfile(session));
-  }
-
-  if (!session?.refreshToken) {
-    clearAuthSession();
-    throw new Error("Sua sessao expirou. Entre novamente.");
-  }
-
-  try {
-    const tokens = await request(`${AUTHENTICATION_BASE_PATH}/refresh`, {
-      method: "POST",
-      body: {
-        refreshToken: session.refreshToken,
-      },
-      retryOnAuthFailure: false,
-    });
-
-    return saveAuthSession(tokens, session.profile);
-  } catch (error) {
-    clearAuthSession();
-    throw error;
-  }
+async function publishBrowserContext(accessToken) {
+  return authRequest("/api/v1/gateway/browser-context", { method: "POST", authenticated: true, accessToken, retry: false });
 }
-
+export function refreshSession() {
+  if (refreshInFlight) return refreshInFlight;
+  const rotate = async () => {
+    const previous = readAuthSession();
+    try {
+      const tokens = await authRequest(`${AUTH}/refresh`, { method: "POST", csrf: true, retry: false });
+      await publishBrowserContext(tokens.accessToken);
+      return saveAuthSession(tokens, previous?.profile);
+    } catch (error) { clearAuthSession(); throw error; }
+  };
+  if (typeof navigator === "undefined" || !navigator.locks?.request) {
+    return Promise.reject(new Error("A renovação segura entre abas exige um navegador com Web Locks em HTTPS. Entre novamente."));
+  }
+  refreshInFlight = navigator.locks.request("logimarui-iiam-refresh", rotate).finally(() => { refreshInFlight = null; });
+  return refreshInFlight;
+}
 export const authApi = {
-  login(payload) {
-    return request(`${AUTHENTICATION_BASE_PATH}/login`, {
-      method: "POST",
-      body: payload,
-    });
+  async login(payload) {
+    const tokens = await authRequest(`${AUTH}/login`, { method: "POST", body: payload, csrf: true });
+    await publishBrowserContext(tokens.accessToken);
+    return { ...tokens, expiresInSeconds: tokens.expiresIn };
   },
-  completeRequiredPasswordChange(payload) {
-    return request(`${AUTHENTICATION_BASE_PATH}/login/password-change`, {
-      method: "POST",
-      body: payload,
-    });
+  register: (payload) => authRequest("/api/iam/api/v1/identity-applications", { method: "POST", body: payload }),
+  createPasswordRecoveryRequest: (payload) => authRequest(`${AUTH}/recovery/request`, { method: "POST", body: payload }),
+  sendPasswordRecoveryEmailToken: (payload) => authRequest(`${AUTH}/recovery/request`, { method: "POST", body: payload }),
+  resetPasswordByToken: ({ token, newPassword }) => authRequest(`${AUTH}/recovery/complete`, { method: "POST", body: { token, password: newPassword } }),
+  completeActivation: ({ token, newPassword }) => authRequest(`${AUTH}/activation/complete`, { method: "POST", body: { token, password: newPassword } }),
+  async me({ accessToken, signal } = {}) {
+    const profile = await authRequest("/api/v1/gateway/me", { authenticated: true, accessToken, signal });
+    // Administrative introspection is optional; ordinary users never receive AUDIT_READ just for navigation.
+    try {
+      const internal = [];
+      for (let page = 0; page < 10; page += 1) {
+        const result = await authRequest(`/api/iam/api/v1/authorization/admin/effective-permissions?identityId=${encodeURIComponent(profile.identityId)}&scopeId=00000000-0000-0000-0000-000000000001&page=${page}&size=100`, { authenticated: true, accessToken, signal });
+        internal.push(...(result.items || []).filter(item => item.allowed).map(item => item.code));
+        if ((page + 1) * 100 >= result.total) break;
+      }
+      profile.authorities = [...new Set([...(profile.authorities || []), ...internal])];
+    } catch (error) { if (error.status !== 403) throw error; }
+    return profile;
   },
-  register(payload) {
-    return request(`${AUTHENTICATION_BASE_PATH}/register`, {
-      method: "POST",
-      body: payload,
-    });
+  async logout() {
+    const token = readAuthSession()?.accessToken;
+    try { if (token) await authRequest("/api/v1/gateway/browser-context", { method: "DELETE", authenticated: true, accessToken: token, retry: false }); }
+    finally { await authRequest(`${AUTH}/logout`, { method: "POST", csrf: true, retry: false }); }
   },
-  createPasswordRecoveryRequest(payload) {
-    return request(PASSWORD_RECOVERY_REQUESTS_PATH, {
-      method: "POST",
-      body: payload,
-    });
-  },
-  sendPasswordRecoveryEmailToken(payload) {
-    return request(`${PASSWORD_RECOVERY_REQUESTS_PATH}/email-token`, {
-      method: "POST",
-      body: payload,
-    });
-  },
-  resetPasswordByToken(payload) {
-    return request(`${PASSWORD_RECOVERY_REQUESTS_PATH}/token/reset`, {
-      method: "POST",
-      body: payload,
-    });
-  },
-  me({ accessToken } = {}) {
-    const storedSession = readAuthSession();
-
-    if (isTestAuthSession(storedSession) || isTestAccessToken(accessToken)) {
-      return Promise.resolve(
-        normalizeProfilePayload(buildStoredTestProfile(storedSession)),
-      );
-    }
-
-    return request(`${AUTHENTICATION_BASE_PATH}/me`, {
-      authenticated: true,
-      accessToken,
-      retryOnAuthFailure: !accessToken,
-    }).then(normalizeProfilePayload);
-  },
-  logout() {
-    if (isTestAuthSession(readAuthSession())) {
-      return Promise.resolve(null);
-    }
-
-    return request(`${AUTHENTICATION_BASE_PATH}/logout`, {
-      method: "POST",
-      authenticated: true,
-    });
-  },
-  refresh() {
-    return refreshSession();
-  },
+  refresh: refreshSession,
 };

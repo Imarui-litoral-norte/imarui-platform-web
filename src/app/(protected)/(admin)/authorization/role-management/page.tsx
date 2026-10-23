@@ -1,5 +1,2 @@
-import RoleManagementView from "@/views/admin/authorization/ui/RoleManagementView";
-
-export default function AdminRolesPage() {
-  return <RoleManagementView />;
-}
+import IamView from "@/views/iam/ui/IamView";
+export default function RoleManagementPage() { return <IamView area="authorization"/>; }

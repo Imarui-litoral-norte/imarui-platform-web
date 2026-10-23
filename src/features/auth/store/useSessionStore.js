@@ -12,11 +12,11 @@ import { APP_ROUTES } from "@/shared/config/routes";
 const REFRESH_BUFFER_MS = 60_000;
 
 function hasStoredSession(session) {
-  return Boolean(session?.accessToken && session?.refreshToken);
+  return Boolean(session?.accessToken);
 }
 
 function shouldRefreshSoon(session) {
-  if (!session?.refreshToken || !session?.expiresAt) {
+  if (!session?.accessToken || !session?.expiresAt) {
     return false;
   }
 
@@ -46,26 +46,13 @@ export const useSessionStore = create((set, get) => ({
   async syncSession(router, { forceRefresh = false } = {}) {
     const storedSession = readAuthSession();
 
-    if (!hasStoredSession(storedSession)) {
-      clearAuthSession();
-      set({
-        status: "unauthenticated",
-        error: "",
-        session: null,
-        profile: null,
-        isRefreshing: false,
-      });
-      redirectToLogin(router);
-      return null;
-    }
-
     set({
       session: storedSession,
-      profile: storedSession.profile ?? null,
+      profile: storedSession?.profile ?? null,
     });
 
     try {
-      if (forceRefresh || shouldRefreshSoon(storedSession)) {
+      if (!hasStoredSession(storedSession) || forceRefresh || shouldRefreshSoon(storedSession)) {
         set({ isRefreshing: true });
         await authApi.refresh();
       }

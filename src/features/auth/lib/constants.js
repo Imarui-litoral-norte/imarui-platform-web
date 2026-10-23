@@ -1,7 +1,7 @@
 import { AUTH_FORM_MODES } from "@/features/auth/types";
 import { APP_ROUTES } from "@/shared/config/routes";
 
-export const AUTH_PAGE_CONTENT = {
+const CONTENT = {
   login: {
     mode: AUTH_FORM_MODES.LOGIN,
     footer: "portal de acesso logimarui",
@@ -188,4 +188,29 @@ export const AUTH_PAGE_CONTENT = {
       },
     ],
   },
+};
+
+const identityKind = { name: "identityKind", label: "Tipo de identidade", type: "select", defaultValue: "PERSON", required: true,
+  options: [{value:"PERSON",label:"Pessoa"},{value:"LEGAL_ENTITY",label:"Pessoa jurídica"},{value:"SERVICE",label:"Serviço"}] };
+const identifier = { name: "identifier", label: "Apelido ou documento", type: "text", autoComplete: "username", required: true, maxLength: 100,
+  placeholder: "Apelido, CPF ou CNPJ", hint: "E-mail é contato e não é usado como identificação de acesso." };
+export const AUTH_PAGE_CONTENT = {
+  ...CONTENT,
+  login: { ...CONTENT.login, fields: [identityKind, identifier,
+    {name:"password",label:"Senha",type:"password",autoComplete:"current-password",required:true}],
+    secondaryLink: {...CONTENT.login.secondaryLink, cta:"Solicitar acesso"} },
+  register: { ...CONTENT.register, formTitle:"Solicitar acesso", submitLabel:"Enviar solicitação",
+    formDescription:"O cadastro depende de aprovação, classificação e convite de primeiro acesso.",
+    fields: [
+      {name:"nickname",label:"Apelido de acesso",type:"text",required:true,maxLength:64,validation:{minLength:3}},
+      ...CONTENT.register.fields.filter(field => !["password","confirmPassword"].includes(field.name)).map(field => field.name === "email" ? {...field,required:true} : field)
+    ] },
+  forgotPassword: { ...CONTENT.forgotPassword, formTitle:"Recuperar acesso", submitLabel:"Solicitar recuperação",
+    formDescription:"Informe o tipo e a identificação da conta. As instruções seguem para o contato cadastrado, quando aplicável.",
+    helperText:"A resposta não informa se uma conta existe.",fields:[identityKind,identifier] },
+  passwordRecoveryReset: { ...CONTENT.passwordRecoveryReset,
+    formDescription:"Defina a senha usando o convite de primeiro acesso ou o link de recuperação recebido.",
+    helperText:"Use pelo menos 12 caracteres e no máximo 72 bytes UTF-8.",
+    fields:CONTENT.passwordRecoveryReset.fields.map(field => field.name === "password"
+      ? {...field,hint:"Mínimo de 12 caracteres; máximo de 72 bytes UTF-8.",validation:{minLength:12,maxUtf8Bytes:72}} : field) }
 };

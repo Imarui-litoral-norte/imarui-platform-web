@@ -32,18 +32,20 @@ function renderSidebarItemIcon(icon) {
 
 function isNavigationItemActive(item, pathname, activeSidebarPanel) {
   if (item.type === "panel") {
-    return activeSidebarPanel === item.id;
+    return activeSidebarPanel === item.id || Boolean(item.activePath && (pathname === item.activePath || pathname.startsWith(`${item.activePath}/`)));
   }
 
   const activePath = item.activePath || item.href;
   return pathname === activePath || pathname.startsWith(`${activePath}/`);
 }
 
-function SidebarPanelItem({ active, item, onClick }) {
+function SidebarPanelItem({ active, expanded, item, onClick }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-expanded={expanded}
+      aria-controls={`sidebar-panel-${item.id}`}
       className={`flex w-full items-start justify-between gap-3 rounded-[22px] border px-3.5 py-3 text-left transition ${
         active
           ? "border-[color:var(--shell-accent)] bg-[var(--shell-accent-soft)]"
@@ -165,7 +167,7 @@ export default function AppSidebar({
   );
 
   return (
-    <aside className="fixed bottom-4 left-4 top-4 z-[60] flex w-[min(88vw,330px)] flex-col rounded-[28px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] p-5 shadow-[0_24px_80px_rgba(20,32,43,0.22)] sm:bottom-6 sm:left-6 sm:top-6">
+    <aside aria-label="Navegação principal" className="fixed bottom-4 left-4 top-4 z-[60] flex w-[min(88vw,330px)] flex-col rounded-[28px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-strong)] p-5 shadow-[0_24px_80px_rgba(20,32,43,0.22)] sm:bottom-6 sm:left-6 sm:top-6">
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--shell-accent)]">
@@ -194,6 +196,7 @@ export default function AppSidebar({
               <SidebarPanelItem
                 key={item.id}
                 active={isActive}
+                expanded={activeSidebarPanel === item.id}
                 item={item}
                 onClick={() => onTogglePanel(item.id)}
               />
@@ -209,7 +212,8 @@ export default function AppSidebar({
         </div>
 
         {activePanelItem?.panel ? (
-          <div className="absolute left-0 top-full z-[61] mt-3 w-full rounded-[24px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4 shadow-[0_18px_60px_rgba(20,32,43,0.16)] sm:left-full sm:top-0 sm:ml-4 sm:mt-0 sm:w-[290px]">
+          <div id={`sidebar-panel-${activePanelItem.id}`} className={activePanelItem.children ? "shell-scrollbar absolute inset-0 z-[61] max-h-full overflow-y-auto rounded-[24px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4 shadow-[0_18px_60px_rgba(20,32,43,0.16)] sm:inset-auto sm:left-full sm:top-0 sm:ml-4 sm:max-h-[calc(100dvh-160px)] sm:w-[290px]" : "absolute left-0 top-full z-[61] mt-3 w-full rounded-[24px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4 shadow-[0_18px_60px_rgba(20,32,43,0.16)] sm:left-full sm:top-0 sm:ml-4 sm:mt-0 sm:w-[290px]"}>
+            {activePanelItem.children ? <button type="button" onClick={() => onTogglePanel(activePanelItem.id)} className="mb-4 text-sm text-[var(--shell-accent)]">← Voltar aos módulos</button> : null}
             <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--shell-accent)]">
               {activePanelItem.panel.eyebrow}
             </p>
@@ -223,6 +227,7 @@ export default function AppSidebar({
             {activePanelItem.showServices ? (
               <ServicePanel items={serviceItems} />
             ) : null}
+            {activePanelItem.children ? <nav aria-label="Submenu IAM" className="mt-4 space-y-2">{activePanelItem.children.map(child => <SidebarLinkItem key={child.id} item={child} active={pathname === child.href || pathname.startsWith(`${child.href}/`)} onNavigate={onNavigate}/>)}</nav> : null}
           </div>
         ) : null}
       </div>

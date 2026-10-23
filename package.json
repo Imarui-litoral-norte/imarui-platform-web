@@ -11,7 +11,9 @@
     "lint": "eslint",
     "test:dto-analytics": "node ./scripts/test-dto-analytics.mjs",
     "test:journey": "node ./scripts/test-journey.mjs",
-    "test": "npm run test:dto-analytics && npm run test:journey",
+    "test": "npm run test:dto-analytics && npm run test:journey && npm run test:iam && npm run test:iiam-auth",
+    "test:iam": "node ./scripts/test-iam.mjs",
+    "test:iiam-auth": "node ./scripts/test-iiam-auth.mjs",
     "typecheck": "tsc --noEmit",
     "build-start": "next build && node ./scripts/run-next-with-port.mjs start"
   },

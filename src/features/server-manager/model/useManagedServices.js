@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
 
 const FRONTEND_SERVICE_ID = "frontend";
 const MANAGED_SERVICES_BASE_PATH = "/api/v1/admin/services";
@@ -13,30 +12,6 @@ function toErrorMessage(error, fallbackMessage) {
   }
 
   return fallbackMessage;
-}
-
-async function readJsonResponse(response) {
-  const rawText = await response.text();
-  let payload = null;
-
-  if (rawText) {
-    try {
-      payload = JSON.parse(rawText);
-    } catch {
-      payload = rawText;
-    }
-  }
-
-  if (!response.ok) {
-    const message =
-      typeof payload === "string"
-        ? payload
-        : payload?.message || payload?.errorMessage || `Falha HTTP ${response.status}`;
-
-    throw new Error(message);
-  }
-
-  return payload;
 }
 
 function orderForShutdown(services) {
@@ -53,7 +28,7 @@ function orderForShutdown(services) {
   });
 }
 
-export function useManagedServices() {
+export function useManagedServices(request) {
   const [overview, setOverview] = useState({
     startup: null,
     services: [],
@@ -69,11 +44,7 @@ export function useManagedServices() {
     }
 
     try {
-      const payload = await readJsonResponse(
-        await fetch(buildGatewayUrl(`${MANAGED_SERVICES_BASE_PATH}/overview`), {
-          cache: "no-store",
-        }),
-      );
+      const payload = await request(`${MANAGED_SERVICES_BASE_PATH}/overview`);
 
       setOverview({
         startup: payload?.startup ?? null,
@@ -93,15 +64,11 @@ export function useManagedServices() {
 
       throw loadError;
     }
-  }, []);
+  }, [request]);
 
   const runPost = useCallback(async (path) => {
-    return readJsonResponse(
-      await fetch(buildGatewayUrl(path), {
-        method: "POST",
-      }),
-    );
-  }, []);
+    return request(path, { method: "POST" });
+  }, [request]);
 
   const runSingleAction = useCallback(
     async (service, action) => {

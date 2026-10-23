@@ -54,6 +54,9 @@ export function validateAuthForm(fields, values) {
     if (rules.matchesField && value !== values[rules.matchesField]) {
       errors[field.name] = "Os valores informados nao coincidem.";
     }
+    if (rules.maxUtf8Bytes && new TextEncoder().encode(String(value)).length > rules.maxUtf8Bytes) {
+      errors[field.name] = `Use no máximo ${rules.maxUtf8Bytes} bytes UTF-8.`;
+    }
   }
 
   return errors;

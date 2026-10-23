@@ -1,10 +1,14 @@
 "use client";
 
+import { authRequest } from "@/features/auth/lib/authApi";
 import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
 import { APP_ROUTES } from "@/shared/config/routes";
 import { useManagedServices } from "@/features/server-manager/model/useManagedServices";
 
+const requestServices=(path,options={})=>authRequest(path,{...options,authenticated:true});
+
 const SERVICE_METADATA = {
+  iiam: { label: "IIAM", description: "Identidade, autenticação e autorização centralizadas.", accessPath: "/api/iam/docs" },
   "gerenciador-extracao": {
     label: "Gerenciador Extracao",
     description: "Worker Python de extracao e transferencia.",
@@ -24,6 +28,11 @@ const SERVICE_METADATA = {
     label: "N8N interno",
     description: "Stack Docker do n8n exposta pelo gateway.",
     accessPath: "/n8n/",
+  },
+  "critica-pedidos": {
+    label: "Critica Pedidos",
+    description: "Painel independente de critica e roteirizacao, com repositorio Git proprio.",
+    accessPath: APP_ROUTES.CRITICA_PEDIDOS,
   },
   "evolution-interno": {
     label: "Evolution Interno",
@@ -53,6 +62,8 @@ function formatDateTime(value) {
 
 function formatServiceType(type) {
   switch (type) {
+    case "JAVA":
+      return "Java";
     case "PYTHON":
       return "Python";
     case "NODE":
@@ -185,7 +196,7 @@ function ServerManagerDashboard() {
     status,
     stopService,
     stopSystem,
-  } = useManagedServices();
+  } = useManagedServices(requestServices);
 
   const startup = overview.startup;
   const totalServices = services.length;

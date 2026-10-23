@@ -1,63 +1,18 @@
 import { authApi } from "@/features/auth/lib/authApi";
-import {
-  buildPasswordResetResult,
-  buildSessionResult,
-} from "@/features/auth/lib/authResult";
 import { clearAuthSession } from "@/features/auth/lib/authSession";
-import { persistSession } from "@/features/auth/services/shared";
 import { APP_ROUTES } from "@/shared/config/routes";
-
-function readPasswordRecoveryContext() {
-  if (typeof window === "undefined") {
-    return {
-      flow: "recovery-token",
-      token: "",
-    };
-  }
-
-  const searchParams = new URLSearchParams(window.location.search);
-
-  return {
-    flow: String(searchParams.get("flow") ?? "recovery-token").trim(),
-    token: String(searchParams.get("token") ?? "").trim(),
-  };
-}
-
+let challenge;
 export async function passwordRecoveryResetService(payload) {
-  const { flow, token } = readPasswordRecoveryContext();
-  const newPassword = String(payload.password ?? "");
-
-  if (!token) {
-    throw new Error("Token de redefinicao nao encontrado na URL atual.");
+  if (!challenge) {
+    const fragment = new URLSearchParams(window.location.hash.slice(1));
+    const query = new URLSearchParams(window.location.search);
+    challenge = { token: fragment.get("token") || query.get("token"), activation: window.location.pathname === "/first-access" || query.get("flow") === "activation" };
+    window.history.replaceState(null, "", window.location.pathname);
   }
-
-  if (flow === "required-password-change") {
-    const tokens = await authApi.completeRequiredPasswordChange({
-      passwordChangeToken: token,
-      newPassword,
-    });
-    const { profile, profileLoaded } = await persistSession(tokens);
-
-    return {
-      ok: true,
-      redirectTo: APP_ROUTES.HOME,
-      message: profileLoaded
-        ? "Senha atualizada e sessao iniciada com sucesso."
-        : "Senha atualizada com sucesso. Os tokens foram salvos, mas os detalhes da sessao nao carregaram agora.",
-      result: buildSessionResult(tokens, profile),
-    };
-  }
-
-  await authApi.resetPasswordByToken({
-    token,
-    newPassword,
-  });
+  if (!challenge.token) throw new Error("Convite ou token não encontrado no link.");
+  const operation = challenge.activation ? authApi.completeActivation : authApi.resetPasswordByToken;
+  await operation({ token: challenge.token, newPassword: String(payload.password || "") });
+  challenge = null;
   clearAuthSession();
-
-  return {
-    ok: true,
-    redirectTo: APP_ROUTES.LOGIN,
-    message: "Senha redefinida com sucesso. Entre novamente com a nova senha.",
-    result: buildPasswordResetResult(),
-  };
+  return { ok: true, redirectTo: APP_ROUTES.LOGIN, message: "Senha definida. Entre com sua identificação e nova senha." };
 }

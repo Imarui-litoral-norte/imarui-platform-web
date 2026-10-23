@@ -11,9 +11,18 @@ export default function AuthInput({
   maxLength,
   required = false,
   onChange,
+  options = [],
 }) {
   const inputId = `auth-${name}`;
   const descriptionId = `${inputId}-description`;
+  if (type === "select") return (
+    <label className="block"><span className="mb-2 block text-sm font-medium text-slate-800">{label}</span>
+      <select id={inputId} name={name} value={value} onChange={onChange} required={required}
+        className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm text-slate-900">
+        {options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>{error ? <span role="alert" className="text-sm text-rose-600">{error}</span> : null}
+    </label>
+  );
 
   if (type === "hidden") {
     return (

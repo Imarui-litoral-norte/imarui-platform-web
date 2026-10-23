@@ -4,6 +4,8 @@ import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { resolveSessionRoles } from "@/features/auth/lib/sessionView";
 import { useSessionStore } from "@/features/auth/store/useSessionStore";
+import { APP_ROUTES } from "@/shared/config/routes";
+import { readAuthSession } from "@/features/auth/lib/authSession";
 
 export function useAuthenticatedSession() {
   const router = useRouter();
@@ -35,13 +37,28 @@ export function useAuthenticatedSession() {
     function handleWindowFocus() {
       void syncSession(router);
     }
+    function handleSessionMessage(event) {
+      if (event.detail?.type === "logout") {
+        useSessionStore.setState({ status: "unauthenticated", session: null, profile: null });
+        router.replace(APP_ROUTES.LOGIN);
+      } else void syncSession(router);
+    }
 
     document.addEventListener("visibilitychange", syncVisibleSession);
     window.addEventListener("focus", handleWindowFocus);
+    window.addEventListener("iiam-session-change", handleSessionMessage);
+    const refreshTimer = window.setInterval(() => {
+      const expiresAt = Date.parse(readAuthSession()?.expiresAt || "");
+      if (document.visibilityState === "visible" && Number.isFinite(expiresAt) && expiresAt - Date.now() <= 60_000) {
+        void syncSession(router, { forceRefresh: true });
+      }
+    }, 30_000);
 
     return () => {
       document.removeEventListener("visibilitychange", syncVisibleSession);
       window.removeEventListener("focus", handleWindowFocus);
+      window.removeEventListener("iiam-session-change", handleSessionMessage);
+      window.clearInterval(refreshTimer);
     };
   }, [router, syncSession]);
 

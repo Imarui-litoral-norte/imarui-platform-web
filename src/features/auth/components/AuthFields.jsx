@@ -13,6 +13,7 @@ export default function AuthFields() {
       label={field.label}
       name={field.name}
       type={field.type}
+      options={field.options}
       placeholder={field.placeholder}
       value={values[field.name] ?? ""}
       hint={field.hint}

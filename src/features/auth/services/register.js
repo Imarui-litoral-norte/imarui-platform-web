@@ -1,29 +1,9 @@
 import { authApi } from "@/features/auth/lib/authApi";
-import { buildSessionResult } from "@/features/auth/lib/authResult";
-import { normalizeCpf, persistSession } from "@/features/auth/services/shared";
-import { APP_ROUTES } from "@/shared/config/routes";
-
-function normalizeOptionalText(value) {
-  const normalizedValue = String(value ?? "").trim();
-  return normalizedValue || undefined;
-}
-
+import { normalizeCpf } from "@/features/auth/services/shared";
 export async function registerService(payload) {
-  const tokens = await authApi.register({
-    name: String(payload.name ?? "").trim(),
-    password: String(payload.password ?? ""),
-    cpf: normalizeCpf(payload.cpf),
-    email: normalizeOptionalText(payload.email),
-    phoneNumber: normalizeOptionalText(payload.phoneNumber),
-  });
-  const { profile, profileLoaded } = await persistSession(tokens);
-
-  return {
-    ok: true,
-    redirectTo: APP_ROUTES.HOME,
-    message: profileLoaded
-      ? "Cadastro concluido e sessao iniciada com sucesso."
-      : "Cadastro concluido com sucesso. Os tokens foram salvos, mas os detalhes da sessao nao carregaram agora.",
-    result: buildSessionResult(tokens, profile),
-  };
+  const result = await authApi.register({ type: "PERSON", fullName: String(payload.name || "").trim(),
+    nickname: String(payload.nickname || "").trim(), cpf: normalizeCpf(payload.cpf), email: String(payload.email || "").trim(),
+    phoneNumber: String(payload.phoneNumber || "").trim() || null });
+  return { ok: true, resetForm: true, message: "Solicitação enviada. Aguarde a aprovação e o convite para definir sua senha.",
+    result: { title: "Solicitação de identidade", items: [{ label: "Protocolo", value: result.id }, { label: "Situação", value: result.status }] } };
 }
