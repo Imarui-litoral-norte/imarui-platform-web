@@ -17,6 +17,7 @@
 
 # next.js
 /.next/
+/.next-iiam-production/
 /out/
 
 # production
