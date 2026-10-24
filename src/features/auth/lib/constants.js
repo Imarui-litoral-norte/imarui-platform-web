@@ -190,27 +190,30 @@ const CONTENT = {
   },
 };
 
-const identityKind = { name: "identityKind", label: "Tipo de identidade", type: "select", defaultValue: "PERSON", required: true,
-  options: [{value:"PERSON",label:"Pessoa"},{value:"LEGAL_ENTITY",label:"Pessoa jurídica"},{value:"SERVICE",label:"Serviço"}] };
-const identifier = { name: "identifier", label: "Apelido ou documento", type: "text", autoComplete: "username", required: true, maxLength: 100,
-  placeholder: "Apelido, CPF ou CNPJ", hint: "E-mail é contato e não é usado como identificação de acesso." };
+const identifier = { name:"identifier",label:"Apelido, documento ou e-mail",type:"text",autoComplete:"username",required:true,maxLength:254,
+  placeholder:"Seu apelido, CPF, CNPJ ou e-mail" };
+const nickname = {name:"nickname",label:"Apelido de acesso",type:"text",autoComplete:"username",required:true,maxLength:64,validation:{minLength:3}};
+const email = {name:"email",label:"E-mail",type:"email",autoComplete:"email",required:true,maxLength:254,validation:{isEmail:true}};
 export const AUTH_PAGE_CONTENT = {
   ...CONTENT,
-  login: { ...CONTENT.login, fields: [identityKind, identifier,
-    {name:"password",label:"Senha",type:"password",autoComplete:"current-password",required:true}],
-    secondaryLink: {...CONTENT.login.secondaryLink, cta:"Solicitar acesso"} },
-  register: { ...CONTENT.register, formTitle:"Solicitar acesso", submitLabel:"Enviar solicitação",
-    formDescription:"O cadastro depende de aprovação, classificação e convite de primeiro acesso.",
-    fields: [
-      {name:"nickname",label:"Apelido de acesso",type:"text",required:true,maxLength:64,validation:{minLength:3}},
-      ...CONTENT.register.fields.filter(field => !["password","confirmPassword"].includes(field.name)).map(field => field.name === "email" ? {...field,required:true} : field)
-    ] },
-  forgotPassword: { ...CONTENT.forgotPassword, formTitle:"Recuperar acesso", submitLabel:"Solicitar recuperação",
-    formDescription:"Informe o tipo e a identificação da conta. As instruções seguem para o contato cadastrado, quando aplicável.",
-    helperText:"A resposta não informa se uma conta existe.",fields:[identityKind,identifier] },
-  passwordRecoveryReset: { ...CONTENT.passwordRecoveryReset,
+  login:{...CONTENT.login,fields:[identifier,{name:"password",label:"Senha",type:"password",autoComplete:"current-password",required:true}],
+    secondaryLink:{...CONTENT.login.secondaryLink,cta:"Solicitar acesso"}},
+  register:{...CONTENT.register,formTitle:"Solicitar acesso",submitLabel:"Enviar solicitação",
+    formDescription:"Informe seus dados. O acesso depende de aprovação e convite de primeiro acesso.",
+    fields:[{name:"document",label:"CPF ou CNPJ",type:"text",inputMode:"numeric",required:true,maxLength:24,placeholder:"Informe seu CPF ou CNPJ",validation:{isDocument:true}},
+      nickname,{name:"name",label:"Nome completo ou razão social",type:"text",required:true,maxLength:150,autoComplete:"name"},email,
+      {name:"birthDate",label:"Data de nascimento",type:"date",documentKind:"person"},
+      {name:"phoneNumber",label:"Telefone",type:"tel",autoComplete:"tel",documentKind:"person"},
+      {name:"tradeName",label:"Nome fantasia",type:"text",maxLength:150,documentKind:"legal"}]},
+  registerService:{...CONTENT.register,mode:AUTH_FORM_MODES.REGISTER_SERVICE,formTitle:"Adicionar serviço",submitLabel:"Enviar solicitação",
+    formDescription:"Solicite o acesso de uma integração ou aplicação. A ativação depende de aprovação administrativa.",
+    fields:[nickname,{name:"name",label:"Nome do serviço",type:"text",required:true,maxLength:100},email,
+      {name:"description",label:"Descrição",type:"text",maxLength:500}]},
+  forgotPassword:{...CONTENT.forgotPassword,formTitle:"Recuperar acesso",submitLabel:"Solicitar recuperação",
+    formDescription:"Informe o apelido, documento ou e-mail da conta.",helperText:"Se a conta estiver apta, as instruções serão enviadas ao contato cadastrado.",fields:[identifier]},
+  passwordRecoveryReset:{...CONTENT.passwordRecoveryReset,
     formDescription:"Defina a senha usando o convite de primeiro acesso ou o link de recuperação recebido.",
     helperText:"Use pelo menos 12 caracteres e no máximo 72 bytes UTF-8.",
-    fields:CONTENT.passwordRecoveryReset.fields.map(field => field.name === "password"
-      ? {...field,hint:"Mínimo de 12 caracteres; máximo de 72 bytes UTF-8.",validation:{minLength:12,maxUtf8Bytes:72}} : field) }
+    fields:CONTENT.passwordRecoveryReset.fields.map(field=>field.name==="password"
+      ?{...field,hint:"Mínimo de 12 caracteres; máximo de 72 bytes UTF-8.",validation:{minLength:12,maxUtf8Bytes:72}}:field)}
 };

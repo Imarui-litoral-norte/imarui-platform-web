@@ -1,3 +1,4 @@
+import { visibleAuthFields } from "@/features/auth/lib/document";
 import AuthInput from "@/features/auth/components/AuthInput";
 import { useAuthFormStore } from "@/features/auth/store/useAuthFormStore";
 
@@ -7,7 +8,7 @@ export default function AuthFields() {
   const handleChange = useAuthFormStore((state) => state.handleChange);
   const values = useAuthFormStore((state) => state.values);
 
-  return fields.map((field) => (
+  return visibleAuthFields(fields, values).map((field) => (
     <AuthInput
       key={field.name}
       label={field.label}

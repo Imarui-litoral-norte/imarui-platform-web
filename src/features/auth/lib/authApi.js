@@ -62,7 +62,8 @@ export const authApi = {
     await publishBrowserContext(tokens.accessToken);
     return { ...tokens, expiresInSeconds: tokens.expiresIn };
   },
-  register: (payload) => authRequest("/api/iam/api/v1/identity-applications", { method: "POST", body: payload }),
+  register: (payload) => authRequest("/api/iam/api/v1/identity-applications/users", { method: "POST", body: payload }),
+  registerService: (payload) => authRequest("/api/iam/api/v1/identity-applications/services", { method: "POST", body: payload }),
   createPasswordRecoveryRequest: (payload) => authRequest(`${AUTH}/recovery/request`, { method: "POST", body: payload }),
   sendPasswordRecoveryEmailToken: (payload) => authRequest(`${AUTH}/recovery/request`, { method: "POST", body: payload }),
   resetPasswordByToken: ({ token, newPassword }) => authRequest(`${AUTH}/recovery/complete`, { method: "POST", body: { token, password: newPassword } }),

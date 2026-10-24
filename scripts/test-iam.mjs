@@ -5,9 +5,9 @@ const {createIiamApi,PLATFORM_SCOPE}=await import(`data:text/javascript;base64,$
 const identity="11111111-1111-4111-8111-111111111111", application="22222222-2222-4222-8222-222222222222";
 let call;
 const api=createIiamApi(async(path,options)=>{call={path,...options};return {items:[],total:0};});
-await api.approve(application,identity,{type:"EMPLOYEE",registration:"BUSINESS-007"});
+await api.approve(application,identity,{type:"EMPLOYEE",registration:"BUSINESS-007"},"SERVICE");
 assert.equal(call.path,`/api/iam/api/v1/admin/identity-applications/${application}/approve`);
-assert.deepEqual(call.body,{tenantId:identity,affiliation:{type:"EMPLOYEE",registration:"BUSINESS-007"}});
+assert.deepEqual(call.body,{tenantId:identity,affiliation:{type:"EMPLOYEE",registration:"BUSINESS-007"},identityKind:"SERVICE"});
 assert.equal(call.authenticated,true);
 await api.endSession(identity);assert.equal(call.method,"DELETE");assert.equal(call.path,`/api/iam/authentication/sessions/${identity}`);
 await api.endAdminSession(42);assert.equal(call.method,"PATCH");assert.equal(call.path,"/api/iam/authentication/admin/sessions/42/logout");

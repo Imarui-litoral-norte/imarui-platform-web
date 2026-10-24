@@ -1,6 +1,7 @@
 "use client";
 
 import { create } from "zustand";
+import { visibleAuthFields } from "@/features/auth/lib/document";
 import { AUTH_PAGE_CONTENT } from "@/features/auth/lib/constants";
 import { formatCpf } from "@/features/auth/lib/cpf";
 import { validateAuthForm } from "@/features/auth/lib/validators";
@@ -95,7 +96,7 @@ export const useAuthFormStore = create((set, get) => ({
       return;
     }
 
-    const nextErrors = validateAuthForm(content.fields, values);
+    const nextErrors = validateAuthForm(visibleAuthFields(content.fields, values), values);
     set({ errors: nextErrors });
 
     if (Object.keys(nextErrors).length > 0) {

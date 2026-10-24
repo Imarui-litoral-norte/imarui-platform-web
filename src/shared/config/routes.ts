@@ -2,7 +2,8 @@ type AppRoutePath = `/${string}`;
 
 export const APP_ROUTES = {
   ROOT: "/",
-  HOME: "/",
+  HOME: "/inicio",
+  REGISTER_SERVICE: "/adicionar-servico",
   LOGIN: "/login",
   REGISTER: "/register",
   FORGOT_PASSWORD: "/forgot-password",

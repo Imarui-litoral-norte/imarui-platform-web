@@ -1,0 +1,25 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const url=source=>`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`;
+const cpf=url(fs.readFileSync('src/features/auth/lib/cpf.js','utf8'));
+const doc=url(fs.readFileSync('src/features/auth/lib/document.js','utf8').replace('"./cpf"',JSON.stringify(cpf)));
+const {isValidDocument,visibleAuthFields}=await import(doc);
+assert.equal(isValidDocument('529.982.247-25'),true);
+assert.equal(isValidDocument('11.222.333/0001-81'),true);
+assert.equal(isValidDocument('11.222.333/0001-82'),false);
+assert.equal(isValidDocument('00000000000000'),false);
+assert.deepEqual(visibleAuthFields([{name:'document'},{name:'birthDate',documentKind:'person'},{name:'tradeName',documentKind:'legal'}],{document:'11222333000181'}).map(f=>f.name),['document','tradeName']);
+const mock=url('export const authApi={register:async body=>({id:"user",status:"PENDING",body}),registerService:async body=>({id:"service",status:"PENDING",body})}');
+// Capture public payloads without network calls or personal data.
+const registerSource=fs.readFileSync('src/features/auth/services/register.js','utf8').replace('"@/features/auth/lib/authApi"',JSON.stringify(url('export const authApi={register:async body=>{globalThis.applicationBody=body;return {id:"user",status:"PENDING"}},registerService:async body=>{globalThis.applicationBody=body;return {id:"service",status:"PENDING"}}}'))).replace('"@/features/auth/lib/document"',JSON.stringify(doc));
+const {registerService,registerTechnicalService}=await import(url(registerSource));
+await registerService({name:'Example Company',document:'11.222.333/0001-81',nickname:'company-example',email:'company@example.test',tradeName:'Example',phoneNumber:'discarded person field'});
+assert.equal(globalThis.applicationBody.document,'11222333000181');
+assert.equal(globalThis.applicationBody.tradeName,'Example');
+assert.equal('phoneNumber' in globalThis.applicationBody,false);
+assert.equal('type' in globalThis.applicationBody,false);
+await registerTechnicalService({name:'Integration',nickname:'integration-example',email:'integration@example.test',document:'ignored'});
+assert.equal('document' in globalThis.applicationBody,false);
+assert.equal('type' in globalThis.applicationBody,false);
+delete globalThis.applicationBody;
+console.log('Identity entrypoints: CPF/CNPJ validation, conditional fields and separate user/service payloads verified.');

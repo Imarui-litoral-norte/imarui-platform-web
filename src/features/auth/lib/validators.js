@@ -1,3 +1,4 @@
+import { isValidDocument } from "@/features/auth/lib/document";
 import { isValidCpf } from "@/features/auth/lib/cpf";
 import {
   isTestCpfValue,
@@ -41,6 +42,7 @@ export function validateAuthForm(fields, values) {
       continue;
     }
 
+    if (rules.isDocument && !isValidDocument(value)) { errors[field.name] = "Informe um CPF ou CNPJ válido."; continue; }
     if (rules.isCpf && !isValidCpf(value)) {
       errors[field.name] = "Informe um CPF valido.";
       continue;

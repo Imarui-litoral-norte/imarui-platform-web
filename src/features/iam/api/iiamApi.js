@@ -31,7 +31,7 @@ export function createIiamApi(request) {
     tenant:(id)=>send(`${ROOT}/api/v1/tenants/${uuid(id)}`),
     createTenant:(code,name)=>send(`${ROOT}/api/v1/admin/tenants`,"POST",{code,name}),
     tenantAction:(id,action)=>{if(!["activate","disable","reactivate"].includes(action))throw new Error("Ação inválida.");return send(`${ROOT}/api/v1/admin/tenants/${uuid(id)}/${action}`,"POST");},
-    approve:(applicationId,tenantId,affiliation)=>send(`${ROOT}/api/v1/admin/identity-applications/${uuid(applicationId)}/approve`,"POST",{tenantId:uuid(tenantId),affiliation}),
+    approve:(applicationId,tenantId,affiliation,identityKind)=>send(`${ROOT}/api/v1/admin/identity-applications/${uuid(applicationId)}/approve`,"POST",{tenantId:uuid(tenantId),affiliation,identityKind}),
     reject:(applicationId,reason)=>{if(!reason?.trim())throw new Error("Informe o motivo da rejeição.");return send(`${ROOT}/api/v1/admin/identity-applications/${uuid(applicationId)}/reject`,"POST",{reason:reason.trim()});},
     invitation:(identityId)=>send(`${ROOT}/authentication/admin/identities/${uuid(identityId)}/invitation`,"POST"),
     identityAction:(id,action)=>{if(!["disable","reactivate"].includes(action))throw new Error("Ação inválida.");return send(`${ROOT}/api/v1/admin/identities/${uuid(id)}/${action}`,"POST");},

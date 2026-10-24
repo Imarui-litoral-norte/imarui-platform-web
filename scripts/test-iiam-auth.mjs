@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+await import('./test-identity-entrypoints.mjs');
 const records=new Map([["logimarui.auth.session",JSON.stringify({accessToken:"legacy-access",refreshToken:"legacy-refresh"})]]);
 const storage={getItem:key=>records.get(key)||null,setItem:(key,value)=>records.set(key,value),removeItem:key=>records.delete(key)};
 globalThis.window={localStorage:storage,sessionStorage:storage,location:{origin:"https://localhost:8443",hostname:"localhost",port:"8443",protocol:"https:"},dispatchEvent(){}};

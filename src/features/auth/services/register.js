@@ -1,9 +1,18 @@
 import { authApi } from "@/features/auth/lib/authApi";
-import { normalizeCpf } from "@/features/auth/services/shared";
+import { documentDigits, isValidDocument } from "@/features/auth/lib/document";
+function resultOf(result) {
+  return {ok:true,resetForm:true,message:"Solicitação enviada. Aguarde a aprovação e o convite para definir sua senha.",
+    result:{title:"Solicitação de acesso",items:[{label:"Protocolo",value:result.id},{label:"Situação",value:result.status}]}};
+}
 export async function registerService(payload) {
-  const result = await authApi.register({ type: "PERSON", fullName: String(payload.name || "").trim(),
-    nickname: String(payload.nickname || "").trim(), cpf: normalizeCpf(payload.cpf), email: String(payload.email || "").trim(),
-    phoneNumber: String(payload.phoneNumber || "").trim() || null });
-  return { ok: true, resetForm: true, message: "Solicitação enviada. Aguarde a aprovação e o convite para definir sua senha.",
-    result: { title: "Solicitação de identidade", items: [{ label: "Protocolo", value: result.id }, { label: "Situação", value: result.status }] } };
+  if(!isValidDocument(payload.document))throw new Error("Informe um CPF ou CNPJ válido.");
+  const document=documentDigits(payload.document),legal=document.length===14;
+  const body={name:String(payload.name||"").trim(),document,nickname:String(payload.nickname||"").trim(),email:String(payload.email||"").trim()};
+  if(legal)body.tradeName=String(payload.tradeName||"").trim()||null;
+  else {body.birthDate=payload.birthDate||null;body.phoneNumber=String(payload.phoneNumber||"").trim()||null;}
+  return resultOf(await authApi.register(body));
+}
+export async function registerTechnicalService(payload) {
+  return resultOf(await authApi.registerService({name:String(payload.name||"").trim(),nickname:String(payload.nickname||"").trim(),
+    email:String(payload.email||"").trim(),description:String(payload.description||"").trim()||null}));
 }
