@@ -3,6 +3,7 @@ import nextVitals from "eslint-config-next/core-web-vitals";
 
 const sourceExtensions = "**/*.{js,jsx,ts,tsx}";
 const featureSlices = [
+  "iam",
   "auth",
   "authorization",
   "critica-pedidos",
@@ -10,6 +11,7 @@ const featureSlices = [
   "extrator-manager",
   "server-manager",
   "spo",
+  "receivables",
 ];
 
 const temporaryAuthConsumers = new Set(["authorization", "dpo"]);

@@ -14,6 +14,7 @@ const BREADCRUMB_LABELS = {
   [APP_ROUTES.IAM_IDENTITY]: "Identidade",
   [APP_ROUTES.IAM_AUTHENTICATION]: "Autenticação",
   [APP_ROUTES.IAM_AUTHORIZATION]: "Autorização",
+  [APP_ROUTES.SPO_RECEIVABLES]: "Gestão de boletos",
   [APP_ROUTES.DPO_DTO_MANAGER]: "Gerenciador de DTOs",
   [APP_ROUTES.DPO_DELIVERY_ROUTE_CME]: "Acompanhamento de rota CME",
   [APP_ROUTES.DPO_JOURNEY_MANAGER]: "Gerenciador de Jornada",
@@ -81,7 +82,7 @@ export const APP_SIDEBAR_ITEMS = [
     id: "critica-pedidos",
     label: "Critica Pedidos",
     description: "Analise operacional de pedidos, PDVs e mapa logistico.",
-    type: "link",
+    type: "document",
     href: APP_ROUTES.CRITICA_PEDIDOS,
     icon: "clipboard",
   },
@@ -259,6 +260,7 @@ export function resolveAppShellLayout(pathname) {
   }
 
   if (matchesRoute(pathname, APP_ROUTES.IAM) ||
+      matchesRoute(pathname, APP_ROUTES.SPO_RECEIVABLES) ||
       DPO_MANAGER_ROUTES.some((route) => matchesRoute(pathname, route))) {
     return {
       contentClassName: DEFAULT_CONTENT_CLASS_NAME,

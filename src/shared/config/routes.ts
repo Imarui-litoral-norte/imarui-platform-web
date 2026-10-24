@@ -11,6 +11,7 @@ export const APP_ROUTES = {
   DPO: "/dpo",
   SPO: "/spo",
   SPO_FINANCEIRO: "/spo/financeiro",
+  SPO_RECEIVABLES: "/spo/financeiro/gestao-boletos",
   DPO_MANAGEMENT: "/dpo/gestao",
   DPO_DTO_MANAGER: "/dpo/gestao/gerenciador-dto",
   DPO_BLITZ_MANAGER: "/dpo/seguranca/gerenciador-blitz",

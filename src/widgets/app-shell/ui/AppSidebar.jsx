@@ -69,8 +69,10 @@ function SidebarPanelItem({ active, expanded, item, onClick }) {
 }
 
 function SidebarLinkItem({ active, item, onNavigate }) {
+  const NavigationLink = item.type === "document" ? "a" : Link;
+
   return (
-    <Link
+    <NavigationLink
       href={item.href}
       onClick={onNavigate}
       className={`flex items-start justify-between gap-3 rounded-[22px] border px-3.5 py-3 text-left transition ${
@@ -91,7 +93,7 @@ function SidebarLinkItem({ active, item, onNavigate }) {
       <span className="mt-0.5 shrink-0 text-[var(--shell-muted)]">
         <ChevronRightIcon />
       </span>
-    </Link>
+    </NavigationLink>
   );
 }
 
