@@ -9,6 +9,7 @@ const criticaServiceUrl = (process.env.CRITICA_SERVICE_URL || `http://127.0.0.1:
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  distDir: process.env.LOGIMARUI_NEXT_DIST_DIR || ".next",
   allowedDevOrigins: [
     hostname(),
     ...new Set(
