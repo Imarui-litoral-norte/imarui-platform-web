@@ -1,12 +1,10 @@
-import { buildGatewayUrl } from "@/shared/network/gatewayUrl";
+import { authRequest } from "@/features/auth/lib/authApi";
 
 const EXTRATOR_API_PREFIX = "/api/extrator";
 
-function buildExtratorUrl(path) {
-  const normalizedPath = String(path || "").startsWith("/")
-    ? path
-    : `/${path}`;
-  return buildGatewayUrl(`${EXTRATOR_API_PREFIX}${normalizedPath}`);
+function buildExtratorPath(path) {
+  const normalizedPath = String(path || "").startsWith("/") ? path : `/${path}`;
+  return `${EXTRATOR_API_PREFIX}${normalizedPath}`;
 }
 
 function buildQueryString(params) {
@@ -23,43 +21,9 @@ function buildQueryString(params) {
   return serialized ? `?${serialized}` : "";
 }
 
-async function readJsonResponse(response) {
-  const rawText = await response.text();
-  let payload = null;
-
-  if (rawText) {
-    try {
-      payload = JSON.parse(rawText);
-    } catch {
-      payload = rawText;
-    }
-  }
-
-  if (!response.ok) {
-    const message =
-      typeof payload === "string"
-        ? payload
-        : payload?.message || payload?.error || `Falha HTTP ${response.status}`;
-
-    const error = new Error(message);
-    error.payload = payload;
-    throw error;
-  }
-
-  return payload;
-}
-
 async function request(path, options = {}) {
-  const { method = "GET", body, cache = "no-store" } = options;
-
-  return readJsonResponse(
-    await fetch(buildExtratorUrl(path), {
-      method,
-      cache,
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
-      body: body === undefined ? undefined : JSON.stringify(body),
-    }),
-  );
+  const { method = "GET", body } = options;
+  return authRequest(buildExtratorPath(path), { method, body, authenticated: true });
 }
 
 export const extratorApi = {
