@@ -131,7 +131,7 @@ export function computeDtoTracking(
   const manualKeys = new Set(manual.keys());
   const excluded = new Set(
     isCollaborator
-      ? []
+      ? tracking.excluded_employee_keys || []
       : tracking.excluded_collaborators.map((name) => normalizeSearchText(name)),
   );
   const today = startOfDay(now);

@@ -169,6 +169,7 @@ export default function DtoConfigurationPanel({
   return (
     <div className="space-y-4">
       <DtoTrackingConfigurationPanel
+        key={`${configuration.form_id}:${configuration.revision}`}
         configuration={configuration}
         onSave={onSave}
       />

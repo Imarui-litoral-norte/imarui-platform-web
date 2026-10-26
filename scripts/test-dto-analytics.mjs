@@ -282,6 +282,42 @@ assert.equal(mapTracking.total, 3);
 assert.equal(mapTracking.current, 3);
 assert.ok(mapTracking.subjects.every((item) => item.applications === 1));
 
+// Expurgos must also apply when a context cached before saving still contains the person.
+const exclusionDetail = {
+  configuration: { tracking: {
+    mode: "COLLABORATOR", collaborator_source: "MAP", roster_field_key: "map",
+    realization_date_field_key: "realized-at", interval_days: 60,
+    applicable_functions: ["MOTORISTA", "AJUDANTE"], excluded_employee_keys: ["1"],
+    excluded_collaborators: [], manual_collaborators: [],
+  } },
+  records: [{id: "map-done", values: {map: 291128, "realized-at": "10/09/2026"}}],
+};
+const exclusionContext = { ...workforceContext, record_employee_keys: {"map-done": ["1", "2", "3"]} };
+const excludedTracking = tracking.computeDtoTracking(exclusionDetail, exclusionContext, new Date(2026, 8, 10, 12));
+assert.equal(excludedTracking.total, 2);
+assert.equal(excludedTracking.subjects.some(subject => subject.key === "1"), false);
+assert.equal(excludedTracking.current, 2);
+assert.equal(excludedTracking.realizationAdherence, 100);
+assert.equal(exclusionDetail.records.length, 1);
+const excludedRows = tracking.computeDtoTrackingYear(exclusionDetail, exclusionContext, 2026).rows;
+assert.equal(excludedRows.length, 2);
+exclusionDetail.configuration.tracking.excluded_employee_keys = [];
+const restoredTracking = tracking.computeDtoTracking(exclusionDetail, exclusionContext, new Date(2026, 8, 10, 12));
+assert.equal(restoredTracking.total, 3);
+assert.equal(restoredTracking.subjects.find(subject => subject.key === "1").applications, 1);
+
+// Stable keys keep homonyms independent, including an empty population after expurgos.
+const sameNameContext = {...exclusionContext, employees: exclusionContext.employees.map(employee => ({...employee, name: "Mesmo nome"}))};
+exclusionDetail.configuration.tracking.excluded_employee_keys = ["1"];
+const homonyms = tracking.computeDtoTracking(exclusionDetail, sameNameContext);
+assert.equal(homonyms.subjects.length, 2);
+assert.ok(homonyms.subjects.every(subject => subject.key !== "1"));
+exclusionDetail.configuration.tracking.excluded_employee_keys = ["1", "2", "3"];
+const allExcluded = tracking.computeDtoTracking(exclusionDetail, exclusionContext);
+assert.equal(allExcluded.total, 0);
+assert.equal(allExcluded.realizationAdherence, null);
+assert.equal(tracking.computeDtoTrackingYear(exclusionDetail, exclusionContext, 2026).rows.length, 0);
+
 const newEmployeeTracking = tracking.computeDtoTracking(
   {
     configuration: {

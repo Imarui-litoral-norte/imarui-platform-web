@@ -109,6 +109,8 @@ function validateFormDetail(payload: DtoFormDetail, singular: string): DtoFormDe
           payload.configuration.tracking?.applicable_functions || [],
         applicant_employee_keys:
           payload.configuration.tracking?.applicant_employee_keys || [],
+        excluded_employee_keys:
+          payload.configuration.tracking?.excluded_employee_keys || [],
         new_employee_window_days:
           payload.configuration.tracking?.new_employee_window_days || null,
         new_employee_first_due_days:

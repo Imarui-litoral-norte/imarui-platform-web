@@ -102,6 +102,7 @@ export interface DtoTrackingConfiguration {
   interval_days: number | null;
   applicable_functions: string[];
   applicant_employee_keys: string[];
+  excluded_employee_keys: string[];
   new_employee_window_days: number | null;
   new_employee_first_due_days: number | null;
   excluded_collaborators: string[];

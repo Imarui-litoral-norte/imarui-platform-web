@@ -103,6 +103,10 @@ export default function DtoTrackingConfigurationPanel({
     current.applicant_employee_keys || [],
   );
   const [applicantPickerOpen, setApplicantPickerOpen] = useState(false);
+  const [excludedEmployeeKeys, setExcludedEmployeeKeys] = useState(
+    current.excluded_employee_keys || [],
+  );
+  const [exclusionPickerOpen, setExclusionPickerOpen] = useState(false);
   const [newEmployeeRuleEnabled, setNewEmployeeRuleEnabled] = useState(
     Boolean(
       current.new_employee_window_days &&
@@ -210,6 +214,17 @@ export default function DtoTrackingConfigurationPanel({
     const selected = new Set(applicantEmployeeKeys);
     return (workforceCatalog?.employees || []).filter((employee) => selected.has(employee.key));
   }, [applicantEmployeeKeys, workforceCatalog?.employees]);
+  const associatedEmployees = useMemo(() => {
+    const functions = new Set(applicableFunctions.map(normalizeSearchText));
+    return (workforceCatalog?.employees || []).filter((employee) =>
+      employee.function && functions.has(normalizeSearchText(employee.function)),
+    );
+  }, [applicableFunctions, workforceCatalog?.employees]);
+  const activeExclusionCount = associatedEmployees.filter((employee) => excludedEmployeeKeys.includes(employee.key)).length;
+  const excludedEmployees = useMemo(() => {
+    const employees = new Map((workforceCatalog?.employees || []).map((employee) => [employee.key, employee]));
+    return excludedEmployeeKeys.map((key) => ({ key, name: employees.get(key)?.name || "Colaborador indisponível no cadastro" }));
+  }, [excludedEmployeeKeys, workforceCatalog?.employees]);
   const currentIsFormEnvironment =
     current.mode === "ENVIRONMENT" && current.environment_source === "FORM";
   const currentConfigured = Boolean(
@@ -501,7 +516,7 @@ export default function DtoTrackingConfigurationPanel({
               )}
             </div>
             <p className="mt-3 text-xs text-[var(--shell-muted)]">
-              {applicableFunctions.length} função(ões) selecionada(s) · {selectedEmployees} pessoa(s) na população.
+              {applicableFunctions.length} função(ões) selecionada(s) · {selectedEmployees} pessoa(s) associada(s) · {activeExclusionCount} expurgada(s) · {selectedEmployees - activeExclusionCount} na visualização.
             </p>
           </section>
 
@@ -786,6 +801,40 @@ export default function DtoTrackingConfigurationPanel({
         </div>
       )}
 
+      {!isEnvironment ? (
+        <section className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4" aria-label="Expurgos do acompanhamento">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <UserMinus aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-[var(--shell-accent)]" />
+              <div>
+                <p className="text-sm font-semibold text-[var(--shell-text)]">Expurgos</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">Retire do acompanhamento colaboradores de férias, afastados ou fora do escopo. Remova o expurgo para incluí-los novamente. As alterações são aplicadas ao salvar o acompanhamento.</p>
+              </div>
+            </div>
+            <DtoButton size="sm" disabled={functionCatalogStatus !== "ready" || associatedEmployees.length === 0} onClick={() => setExclusionPickerOpen(true)}><Plus aria-hidden="true" /> Adicionar expurgo</DtoButton>
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            {excludedEmployees.length ? excludedEmployees.map((employee) => (
+              <span key={employee.key} className="inline-flex items-center gap-2 rounded-full border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] px-3 py-1.5 text-xs font-semibold text-[var(--shell-text)]">
+                {employee.name}
+                <button type="button" aria-label={`Remover expurgo de ${employee.name}`} onClick={() => setExcludedEmployeeKeys((keys) => keys.filter((key) => key !== employee.key))} className="text-[var(--shell-muted)] hover:text-[var(--shell-danger)]"><X aria-hidden="true" className="h-3.5 w-3.5" /></button>
+              </span>
+            )) : <span className="text-xs text-[var(--shell-muted)]">Nenhum colaborador expurgado.</span>}
+          </div>
+        </section>
+      ) : null}
+      <DtoEmployeeSelectionDialog
+        open={exclusionPickerOpen && !isEnvironment}
+        eyebrow="Expurgos"
+        title="Selecionar colaboradores para expurgo"
+        description="A lista contém os colaboradores das funções aplicáveis selecionadas na associação."
+        employees={associatedEmployees}
+        selectedKeys={excludedEmployeeKeys}
+        onChange={setExcludedEmployeeKeys}
+        onClose={() => setExclusionPickerOpen(false)}
+        emptyLabel="Nenhum colaborador está associado às funções selecionadas."
+      />
+
       <section className="mt-5 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-start gap-3">
@@ -877,6 +926,7 @@ export default function DtoTrackingConfigurationPanel({
               interval_days: parsedInterval,
               applicable_functions: isEnvironment ? [] : applicableFunctions,
               applicant_employee_keys: applicantEmployeeKeys,
+              excluded_employee_keys: isEnvironment ? [] : excludedEmployeeKeys,
               new_employee_window_days:
                 !isEnvironment && newEmployeeRuleEnabled
                   ? parsedNewEmployeeWindow
