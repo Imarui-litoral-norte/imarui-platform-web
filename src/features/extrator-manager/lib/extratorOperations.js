@@ -3,6 +3,7 @@ export const EMPTY_OPERATION_FORM = Object.freeze({
   periodType: "",
   periodMode: "",
   monthReference: "",
+  yearReference: "",
   date: "",
   startDate: "",
   endDate: "",

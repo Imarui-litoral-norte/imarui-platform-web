@@ -1,4 +1,5 @@
 export const EXTRATOR_PERIOD_LABELS = Object.freeze({
+  anual: "Anual",
   mensal: "Mensal",
   data_dia_especifico: "Dia especifico",
   periodo_especifico: "Periodo especifico",
@@ -21,6 +22,7 @@ export function buildDefaultPeriodState(periodMeta) {
     periodType,
     periodMode: normalizeString(preset?.padrao),
     monthReference: "",
+    yearReference: "",
     date: "",
     startDate: "",
     endDate: "",
@@ -33,6 +35,7 @@ export function derivePeriodState(currentState, periodMeta) {
       periodType: "",
       periodMode: "",
       monthReference: "",
+      yearReference: "",
       date: "",
       startDate: "",
       endDate: "",
@@ -58,6 +61,10 @@ export function derivePeriodState(currentState, periodMeta) {
 
 export function buildPeriodArgs(periodState) {
   const payload = {};
+
+  if (periodState.periodMode === "ano_referencia" && periodState.yearReference) {
+    payload.ano = periodState.yearReference;
+  }
 
   if (periodState.periodMode === "mes_referencia" && periodState.monthReference) {
     payload.mes_referencia = periodState.monthReference;
@@ -92,6 +99,7 @@ export function hydratePeriodStateFromItem(item) {
   return {
     periodType: normalizeString(item?.period_type || item?.periodo_tipo),
     periodMode: normalizeString(item?.period_mode || item?.periodo_modo),
+    yearReference: normalizeString(item?.period_args?.ano || item?.ano),
     monthReference: normalizeString(
       item?.period_args?.mes_referencia || item?.mes_referencia || item?.mesReferencia,
     ),
@@ -113,6 +121,10 @@ export function buildPeriodSummary(periodState, periodMeta) {
     (periodMeta?.presets?.[periodState.periodType]?.opcoes || []).find(
       (option) => option.id === periodState.periodMode,
     )?.label || periodState.periodMode || "Padrao";
+
+  if (periodState.periodMode === "ano_referencia" && periodState.yearReference) {
+    return `${typeLabel}: ${modeLabel} (${periodState.yearReference})`;
+  }
 
   if (periodState.periodMode === "mes_referencia" && periodState.monthReference) {
     return `${typeLabel}: ${modeLabel} (${periodState.monthReference})`;

@@ -574,6 +574,22 @@ export function PeriodInputs({
         </SelectInput>
       </FormField>
 
+      {state.periodMode === "ano_referencia" ? (
+        <FormField label="Ano de referencia">
+          <TextInput
+            type="number"
+            min="1"
+            max="9999"
+            step="1"
+            placeholder="2026"
+            value={state.yearReference}
+            onChange={(event) =>
+              onChange({ yearReference: event.target.value })
+            }
+          />
+        </FormField>
+      ) : null}
+
       {state.periodMode === "mes_referencia" ? (
         <FormField label="Mes de referencia">
           <TextInput
