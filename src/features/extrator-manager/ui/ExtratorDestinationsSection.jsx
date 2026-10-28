@@ -21,6 +21,14 @@ import { usePaginatedItems } from "@/features/extrator-manager/model/usePaginate
 
 const DESTINATION_TEMPLATE_KINDS = [
   {
+    fileField: "arquivoTemplateAnual",
+    fileLabel: "Arquivo anual",
+    folderField: "pastaTemplateAnual",
+    folderLabel: "Pasta anual",
+    label: "Anual",
+    templateKey: "anual",
+  },
+  {
     fileField: "arquivoTemplateMensal",
     fileLabel: "Arquivo mensal",
     folderField: "pastaTemplateMensal",
@@ -55,6 +63,7 @@ const DESTINATION_TEMPLATE_KINDS = [
 ];
 
 const LISTEN_PERIOD_TEMPLATE_KEY = {
+  anual: "anual",
   mensal: "mensal",
   data_dia_especifico: "diario",
   diario: "diario",

@@ -37,6 +37,7 @@ export function buildDestinationDefaultForm(destinationMeta) {
     mesSemAcento: Boolean(defaultRule.mes_sem_acento),
     dataOrdem: defaultRule.data_ordem || "dmy",
     dataSeparador: defaultRule.data_separador || "_",
+    arquivoTemplateAnual: defaultRule.arquivo_template_anual ?? "{ano}",
     arquivoTemplateMensal: defaultRule.arquivo_template_mensal || "{mes_nome}",
     arquivoTemplateDiario: defaultRule.arquivo_template_diario || "{dia}",
     arquivoTemplatePeriodo:
@@ -44,6 +45,7 @@ export function buildDestinationDefaultForm(destinationMeta) {
       "{data_inicial}{sep_nome}{data_final}",
     arquivoTemplateSemPeriodo:
       defaultRule.arquivo_template_sem_periodo || "{rotina}",
+    pastaTemplateAnual: defaultRule.pasta_template_anual ?? "{ano}",
     pastaTemplateMensal: defaultRule.pasta_template_mensal || "{ano}",
     pastaTemplateDiario:
       defaultRule.pasta_template_diario || "{ano}\\{mes_nome}",
@@ -75,10 +77,12 @@ export function buildDestinationFormFromRule(rule) {
     mesSemAcento: Boolean(rule.mes_sem_acento),
     dataOrdem: rule.data_ordem || "dmy",
     dataSeparador: rule.data_separador || "_",
+    arquivoTemplateAnual: rule.arquivo_template_anual ?? "{ano}",
     arquivoTemplateMensal: rule.arquivo_template_mensal || "",
     arquivoTemplateDiario: rule.arquivo_template_diario || "",
     arquivoTemplatePeriodo: rule.arquivo_template_periodo || "",
     arquivoTemplateSemPeriodo: rule.arquivo_template_sem_periodo || "",
+    pastaTemplateAnual: rule.pasta_template_anual ?? "{ano}",
     pastaTemplateMensal: rule.pasta_template_mensal || "",
     pastaTemplateDiario: rule.pasta_template_diario || "",
     pastaTemplatePeriodo: rule.pasta_template_periodo || "",
@@ -112,10 +116,12 @@ export function serializeDestinationForm(form, password) {
     mes_sem_acento: form.mesSemAcento,
     data_ordem: form.dataOrdem,
     data_separador: form.dataSeparador,
+    arquivo_template_anual: form.arquivoTemplateAnual,
     arquivo_template_mensal: form.arquivoTemplateMensal,
     arquivo_template_diario: form.arquivoTemplateDiario,
     arquivo_template_periodo: form.arquivoTemplatePeriodo,
     arquivo_template_sem_periodo: form.arquivoTemplateSemPeriodo,
+    pasta_template_anual: form.pastaTemplateAnual,
     pasta_template_mensal: form.pastaTemplateMensal,
     pasta_template_diario: form.pastaTemplateDiario,
     pasta_template_periodo: form.pastaTemplatePeriodo,
@@ -188,10 +194,11 @@ function formatDate(rule, date) {
   return [day, month, year].join(separator);
 }
 
-function buildTemplateContext(rule) {
-  const sampleDate = new Date(2026, 2, 5);
-  const sampleStart = new Date(2026, 2, 1);
-  const sampleEnd = new Date(2026, 2, 31);
+function buildTemplateContext(rule, periodType) {
+  const monthIndex = periodType === "anual" ? 0 : 2;
+  const sampleDate = new Date(2026, monthIndex, periodType === "anual" ? 1 : 5);
+  const sampleStart = new Date(2026, periodType === "anual" ? 0 : 2, 1);
+  const sampleEnd = new Date(2026, periodType === "anual" ? 11 : 2, 31);
   const routineSeparator = rule?.rotinaSeparador || "_";
   return {
     rotina: String(rule?.base || "03_11_40").replace(
@@ -201,25 +208,25 @@ function buildTemplateContext(rule) {
     extensao: rule?.extensaoArquivo || ".csv",
     ano: "2026",
     ano_abreviado: "26",
-    mes_nome: formatMonthName(rule, 2),
-    mes_nome_completo: formatMonthName(rule, 2, "completo"),
-    mes_nome_abreviado: formatMonthName(rule, 2, "abreviado"),
-    mes_nome_maiusculo: formatMonthName(rule, 2, "completo", "maiusculo"),
+    mes_nome: formatMonthName(rule, monthIndex),
+    mes_nome_completo: formatMonthName(rule, monthIndex, "completo"),
+    mes_nome_abreviado: formatMonthName(rule, monthIndex, "abreviado"),
+    mes_nome_maiusculo: formatMonthName(rule, monthIndex, "completo", "maiusculo"),
     mes_nome_abreviado_maiusculo: formatMonthName(
       rule,
-      2,
+      monthIndex,
       "abreviado",
       "maiusculo",
     ),
-    mes_numero: "03",
-    mes_numero_sem_zero: "3",
-    dia: "05",
-    dia_sem_zero: "5",
+    mes_numero: String(monthIndex + 1).padStart(2, "0"),
+    mes_numero_sem_zero: String(monthIndex + 1),
+    dia: periodType === "anual" ? "" : "05",
+    dia_sem_zero: periodType === "anual" ? "" : "5",
     data: formatDate(rule, sampleDate),
     data_inicial: formatDate(rule, sampleStart),
     data_final: formatDate(rule, sampleEnd),
     sep_nome: rule?.separator || "",
-    periodo_legado: formatMonthName(rule, 2),
+    periodo_legado: periodType === "anual" ? "2026" : formatMonthName(rule, 2),
   };
 }
 
@@ -234,22 +241,26 @@ function sanitizePreviewComponent(value) {
 }
 
 export function buildDestinationPreviewPath(rule, periodType) {
-  const context = buildTemplateContext(rule);
+  const context = buildTemplateContext(rule, periodType);
   const fileTemplates = {
+    anual: rule?.arquivoTemplateAnual,
     mensal: rule?.arquivoTemplateMensal,
     diario: rule?.arquivoTemplateDiario,
     periodo: rule?.arquivoTemplatePeriodo,
     sem_periodo: rule?.arquivoTemplateSemPeriodo,
   };
   const folderTemplates = {
+    anual: rule?.pastaTemplateAnual,
     mensal: rule?.pastaTemplateMensal,
     diario: rule?.pastaTemplateDiario,
     periodo: rule?.pastaTemplatePeriodo,
     sem_periodo: rule?.pastaTemplateSemPeriodo,
   };
-  const folder = sanitizePreviewComponent(
-    renderTemplate(folderTemplates[periodType], context),
-  );
+  const folder = renderTemplate(folderTemplates[periodType], context)
+    .split(/[\\/]/)
+    .filter(Boolean)
+    .map(sanitizePreviewComponent)
+    .join("\\");
   const file = sanitizePreviewComponent(
     renderTemplate(fileTemplates[periodType], context),
   );
