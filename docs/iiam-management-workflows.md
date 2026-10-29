@@ -37,7 +37,7 @@ O serviço continua responsável pela autorização. O frontend respeita `manage
 1. Abrir Solicitações e observar pendentes, aprovadas e rejeitadas da consulta completa.
 2. Buscar por nome, apelido, contato, documento ou UUID; filtrar situação e ordenar as colunas disponíveis.
 3. Abrir Analisar: o detalhe é consultado novamente, apresentando dados específicos de pessoa física, pessoa jurídica ou serviço, data e identificador.
-4. Consultar a empresa por UUID, conferindo nome, código e situação. Se necessário, criar a empresa e ativá-la pela área Empresas antes de prosseguir.
+4. Selecionar a empresa ativa pelo nome ou código. A lista é paginada no servidor e limitada ao acesso do operador. Quando existe apenas uma empresa ativa visível, ela é pré-selecionada; a seleção permanece para as próximas análises dentro da área. Se necessário, criar a empresa e ativá-la pela área Empresas antes de prosseguir.
 5. Escolher o tipo aprovado permitido pelo fluxo e a classificação do vínculo. Funcionário exige matrícula; cliente exige código do cliente; fornecedor exige código do fornecedor. Parceiro/externo não enviam os códigos das outras classificações.
 6. Aprovar: a seleção precisa corresponder à empresa ativa consultada. O retorno abre a ficha da identidade criada.
 7. Alternativamente, rejeitar com motivo obrigatório de até 500 caracteres. Depois, consultar data, revisor, motivo e IDs resultantes da revisão.
@@ -55,7 +55,7 @@ O serviço continua responsável pela autorização. O frontend respeita `manage
 
 ### 3. Gerenciar empresas
 
-Consultar pelo UUID; criar código/nome pendentes; ativar; renomear preservando o código; desabilitar; reativar. A tela explica o efeito contextual sobre vínculos, sem prometer alterar o estado individual de identidades ou afiliações.
+Buscar pelo nome/código, filtrar por situação e selecionar na lista; criar código/nome pendentes; ativar; renomear preservando o código; desabilitar; reativar. Após criar ou alterar o cadastro, a lista é atualizada. A tela explica o efeito contextual sobre vínculos, sem prometer alterar o estado individual de identidades ou afiliações. O mesmo seletor é usado ao criar um perfil pertencente a uma empresa.
 
 ### 4. Investigar e interromper acesso
 
@@ -146,7 +146,8 @@ Todos os caminhos abaixo recebem o prefixo do gateway **`/api/iam`**. `A` signif
 2. Coleções de autorização agregam páginas de cem itens, com limite de cem páginas. Não se apresenta uma coleção parcial como completa: ao atingir o limite, a interface informa erro e pede um escopo mais restrito.
 3. Sessões e refresh tokens administrativos retornam listas paginadas sem total. A interface consulta vinte por página e oferece próxima enquanto vier uma página cheia. Uma página final vazia é possível. Busca/filtros e indicadores explicitam o alcance da página.
 4. Auditoria, proprietários, revisões e clientes técnicos usam paginação do servidor com o total informado. Consulta de identidades não é simulada por uma lista administrativa inexistente.
-5. Não há listagem geral/busca de identidades ou empresas nos controllers atuais. As aprovações já consultadas oferecem atalhos para identidades; consultas diretas continuam por UUID. Diretórios completos e seleção global por nome exigem novos endpoints.
+   A seleção de empresas também consulta páginas do servidor, com dez opções por página e total autorizado, sem carregar todo o diretório no navegador.
+5. A busca de empresas usa `GET /api/v1/tenants?q=&status=ACTIVE&page=0&size=10` (prefixo do gateway `/api/iam`). `status` aceita ACTIVE, PENDING, DISABLED ou ALL; ACTIVE é o padrão; `size` permite 1–100. Nome/código são pesquisados sem diferenciar maiúsculas; `%`, `_` e barra invertida são tratados literalmente. Itens e total são filtrados por TENANT_READ efetivo por empresa, incluindo herança e negações, **antes** da paginação; não basta confiar nas authorities da plataforma. Não há diretório geral de identidades: os atalhos de identidades aprovadas e consultas por UUID continuam disponíveis.
 6. Os controllers atuais não oferecem CRUD/listagem de afiliações para gestão independente após a aprovação. A interface apresenta o vínculo criado e seu identificador na revisão, sem prometer edição inexistente.
 7. Não há consulta/cancelamento administrativo de recuperação ou edição genérica de CPF/CNPJ/e-mail/dados pessoais. Apenas a alteração de nickname está exposta. Autoexclusão do titular (`DELETE /api/v1/identities/me`) permanece fora desta console administrativa; cadastro público, entrega de desafios, PDP e sincronização máquina a máquina preservam seus fluxos existentes.
 8. `PUT A/roles/{id}/permissions`, `POST A/scopes/{id}/reparent`, leitura isolada de sessão/token e rotas de perfis por tenant continuam disponíveis no serviço. A tela usa a edição combinada de perfil/escopo, listas com metadados e perfis disponíveis no escopo para evitar controles duplicados.
@@ -160,5 +161,6 @@ Todos os caminhos abaixo recebem o prefixo do gateway **`/api/iam`**. `A` signif
 - Suíte completa `npm test` aprovada, incluindo os testes dos demais módulos. Compilação otimizada `npm run build` concluída com TypeScript e geração de páginas, em `.runtime/iiam-ui-build`, com configuração isolada; a configuração principal do projeto foi preservada.
 - Navegador: verificados lista e revisão de solicitação, campos condicionais de vínculo, ficha, sessão atual, referências com nome, composição de perfil, conferência do destinatário, diagnóstico/explicação, auditoria antes/depois e configuração de cliente técnico. Temas claro/escuro e viewports desktop/celular; largura da página no celular igual à largura disponível, sem transbordamento do documento. Escape fecha o diálogo e restaura o foco.
 - A página temporária de revisão foi removida e seu servidor encerrado antes da entrega. Backend, gateway e frontend previamente em execução não foram reiniciados. As operações contra dados reais dependem de homologação integrada posterior.
+- Correção de seleção de empresas: diretório no IIAM com 39 testes HTTP/integração aprovados; testes de contrato do frontend para nome/código, filtros e paginação; revisão no navegador da seleção automática da única empresa ativa, busca por nome, aprovação simulada com vínculo EMPLOYEE e navegação para a gestão de empresas. Não utiliza UUID digitado nesses fluxos.
 
 As fontes dos contratos são os controllers/DTOs/use cases do serviço local `imarui-identity-and-access-manager-service`, principalmente `AuthorizationAdminController`, `AuthenticationController`, `AdminIdentityApplicationController`, `AuthorizationQueries`, `SecurityAuditController`, `TechnicalClientController` e `RootRecoveryController`.

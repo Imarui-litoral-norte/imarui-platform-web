@@ -21,6 +21,7 @@ import {
   Subnav,
 } from "./ManagementUi";
 import s from "./iam.module.css";
+import TenantPicker from "./TenantPicker";
 
 export function PermissionPicker({
   permissions,
@@ -342,6 +343,7 @@ function RoleForm({
   const [selected, setSelected] = useState(composition),
     [ownership, setOwnership] = useState(role?.ownership || "SCOPE"),
     [reason, setReason] = useState("");
+  const [tenantId, setTenantId] = useState("");
   const editable = !role || role.manageable;
   return (
     <form
@@ -350,26 +352,26 @@ function RoleForm({
         e.preventDefault();
         const values = new FormData(e.currentTarget);
         if (
-          await operation.run(
-            () =>
-              role
-                ? api.saveRole(
-                    role,
-                    String(values.get("name")),
-                    String(values.get("status")),
-                    selected,
-                    reason,
-                  )
-                : api.createRole(
-                    String(values.get("name")),
-                    ownership,
-                    scope,
-                    String(values.get("tenantId") || ""),
-                    selected,
-                    reason,
-                  ),
-            "Perfil e permissões salvos.",
-          )
+          await operation.run(() => {
+            if (!role && ownership === "TENANT" && !tenantId)
+              throw new Error("Selecione a empresa proprietária do perfil.");
+            return role
+              ? api.saveRole(
+                  role,
+                  String(values.get("name")),
+                  String(values.get("status")),
+                  selected,
+                  reason,
+                )
+              : api.createRole(
+                  String(values.get("name")),
+                  ownership,
+                  scope,
+                  String(values.get("tenantId") || ""),
+                  selected,
+                  reason,
+                );
+          }, "Perfil e permissões salvos.")
         )
           onSaved();
       }}
@@ -428,11 +430,14 @@ function RoleForm({
         )}
       </div>
       {!role && ownership === "TENANT" ? (
-        <Field
-          label="UUID da empresa proprietária"
+        <TenantPicker
+          api={api}
+          value={tenantId}
+          onChange={setTenantId}
+          label="Empresa proprietária do perfil"
           name="tenantId"
-          required
-          hint="O serviço resolve o escopo vinculado à empresa."
+          activeOnly
+          autoSelectSingle
         />
       ) : null}
       <h3>Composição do perfil</h3>

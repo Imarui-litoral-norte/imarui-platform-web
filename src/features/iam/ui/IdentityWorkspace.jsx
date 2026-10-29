@@ -38,6 +38,7 @@ import {
   Subnav,
 } from "./ManagementUi";
 import s from "./iam.module.css";
+import TenantPicker from "./TenantPicker";
 
 const detailLabels = {
   fullName: "Nome completo",
@@ -108,6 +109,7 @@ export default function IdentityWorkspace({
         <Applications
           api={api}
           tenantId={tenantId}
+          onTenant={setTenantId}
           setKnown={setKnown}
           onIdentity={(id) => {
             setTarget(id);
@@ -132,7 +134,7 @@ export default function IdentityWorkspace({
   );
 }
 
-function Applications({ api, tenantId, setKnown, onIdentity }) {
+function Applications({ api, tenantId, onTenant, setKnown, onIdentity }) {
   const load = useCallback(async () => {
     const result = rowsOf(await api.applications());
     setKnown(result.filter((a) => a.resolvedIdentityId));
@@ -242,6 +244,7 @@ function Applications({ api, tenantId, setKnown, onIdentity }) {
           api={api}
           id={review}
           initialTenantId={tenantId}
+          onTenant={onTenant}
           onClose={() => setReview(null)}
           onResolved={(id) => {
             setReview(null);
@@ -254,11 +257,25 @@ function Applications({ api, tenantId, setKnown, onIdentity }) {
   );
 }
 
-function ApplicationReview({ api, id, initialTenantId, onClose, onResolved }) {
+function ApplicationReview({
+  api,
+  id,
+  initialTenantId,
+  onTenant,
+  onClose,
+  onResolved,
+}) {
   const query = useRemote(useCallback(() => api.application(id), [api, id]));
   const operation = useOperation();
-  const [tenantDraft, setTenantDraft] = useState(initialTenantId),
-    [tenantId, setTenantId] = useState(initialTenantId);
+  const [tenantId, setTenantId] = useState(initialTenantId);
+  const [tenantRevision, setTenantRevision] = useState(0);
+  const chooseTenant = useCallback(
+    (value) => {
+      setTenantId(value);
+      onTenant(value);
+    },
+    [onTenant],
+  );
   const tenantQuery = useRemote(
     useCallback(
       () => (tenantId ? api.tenant(tenantId) : Promise.resolve(null)),
@@ -362,27 +379,20 @@ function ApplicationReview({ api, id, initialTenantId, onClose, onResolved }) {
                 <Feedback {...operation} />
                 {mode === "approve" ? (
                   <>
-                    <form
-                      className={s.fieldRow}
-                      onSubmit={(e) => {
-                        e.preventDefault();
-                        setTenantId(tenantDraft);
-                        if (tenantDraft === tenantId) tenantQuery.reload();
-                      }}
-                    >
-                      <Field
-                        label="Empresa para o vínculo"
-                        hint="Informe o UUID da empresa. A API atual permite consultar empresas por identificador."
-                        value={tenantDraft}
-                        onChange={(e) => setTenantDraft(e.target.value)}
-                        required
-                      />
-                      <Button type="submit">Consultar empresa</Button>
+                    <TenantPicker
+                      api={api}
+                      value={tenantId}
+                      onChange={chooseTenant}
+                      activeOnly
+                      autoSelectSingle
+                      revision={tenantRevision}
+                    />
+                    <div className={s.actions}>
                       <Button onClick={() => setNewTenant(true)}>
                         <Plus size={14} />
                         Criar empresa
                       </Button>
-                    </form>
+                    </div>
                     {tenantId ? (
                       <QueryState query={tenantQuery}>
                         {tenant ? (
@@ -409,7 +419,7 @@ function ApplicationReview({ api, id, initialTenantId, onClose, onResolved }) {
                           if (
                             !tenant ||
                             tenant.status !== "ACTIVE" ||
-                            tenant.id !== tenantDraft.trim().toLowerCase()
+                            tenant.id !== tenantId
                           )
                             throw new Error(
                               "Consulte a empresa selecionada e confirme que está ativa.",
@@ -506,7 +516,7 @@ function ApplicationReview({ api, id, initialTenantId, onClose, onResolved }) {
                             operation.busy ||
                             !tenant ||
                             tenant.status !== "ACTIVE" ||
-                            tenantDraft.trim().toLowerCase() !== tenant.id
+                            tenantId !== tenant.id
                           }
                         >
                           Aprovar solicitação
@@ -562,8 +572,8 @@ function ApplicationReview({ api, id, initialTenantId, onClose, onResolved }) {
           onClose={() => setNewTenant(false)}
           onSaved={(created) => {
             setNewTenant(false);
-            setTenantDraft(created.id);
-            setTenantId(created.id);
+            chooseTenant(created.id);
+            setTenantRevision((value) => value + 1);
           }}
         />
       ) : null}
@@ -849,11 +859,11 @@ function RenameIdentity({ api, identity, onClose, onSaved }) {
   );
 }
 function TenantPanel({ api, initialId, onTenant }) {
-  const [draft, setDraft] = useState(initialId),
-    [id, setId] = useState(initialId),
+  const [id, setId] = useState(initialId),
     [editor, setEditor] = useState(null),
     [action, setAction] = useState(null);
   const operation = useOperation();
+  const [directoryRevision, setDirectoryRevision] = useState(0);
   const query = useRemote(
     useCallback(() => (id ? api.tenant(id) : Promise.resolve(null)), [api, id]),
   );
@@ -869,27 +879,22 @@ function TenantPanel({ api, initialId, onTenant }) {
         </Button>
       }
     >
-      <form
-        className={s.fieldRow}
-        onSubmit={(e) => {
-          e.preventDefault();
-          setId(draft);
-          onTenant(draft);
-          if (draft === id) query.reload();
+      <TenantPicker
+        api={api}
+        value={id}
+        onChange={(value) => {
+          setId(value);
+          onTenant(value);
+          if (value === id) query.reload();
         }}
-      >
-        <Field
-          label="UUID da empresa"
-          required
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-        />
-        <Button type="submit">Consultar empresa</Button>
-      </form>
+        activeOnly={false}
+        label="Empresas cadastradas"
+        revision={directoryRevision}
+      />
       <Feedback {...operation} />
       <QueryState
         query={query}
-        empty="Consulte uma empresa por UUID ou crie uma nova."
+        empty="Selecione uma empresa na lista para gerenciar seu cadastro."
       >
         {tenant ? (
           <>
@@ -937,9 +942,9 @@ function TenantPanel({ api, initialId, onTenant }) {
           onSaved={(result) => {
             setEditor(null);
             setId(result.id);
-            setDraft(result.id);
             onTenant(result.id);
             query.reload();
+            setDirectoryRevision((value) => value + 1);
           }}
         />
       ) : null}
@@ -960,6 +965,7 @@ function TenantPanel({ api, initialId, onTenant }) {
             ) {
               setAction(null);
               query.reload();
+              setDirectoryRevision((value) => value + 1);
             }
           }}
         />

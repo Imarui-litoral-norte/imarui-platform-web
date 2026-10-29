@@ -96,6 +96,15 @@ export function createIiamApi(request) {
         nickname: nickname.trim(),
       }),
     tenant: (id) => send(`${ROOT}/api/v1/tenants/${uuid(id)}`),
+    tenants: ({ q = "", status = "ACTIVE", page = 0, size = 20 } = {}) => {
+      if (!["ACTIVE", "PENDING", "DISABLED", "ALL"].includes(status))
+        throw new Error("Situação de empresa inválida.");
+      if (q.trim().length > 150)
+        throw new Error("Busque a empresa com até 150 caracteres.");
+      return send(
+        `${ROOT}/api/v1/tenants?${query({ q: q.trim(), status, ...pageQuery(page, size) })}`,
+      );
+    },
     renameTenant: (id, name) =>
       send(`${ROOT}/api/v1/admin/tenants/${uuid(id)}/name`, "PATCH", {
         name: name.trim(),

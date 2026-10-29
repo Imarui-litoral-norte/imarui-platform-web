@@ -673,6 +673,76 @@
   gap: 1rem;
   min-width: 0;
 }
+.tenantPicker {
+  display: grid;
+  gap: 0.8rem;
+  padding: 1rem;
+  margin: 0.8rem 0;
+  border: 1px solid var(--shell-line);
+  border-radius: 14px;
+}
+.tenantPicker .sectionHeader {
+  padding-bottom: 0;
+}
+.tenantOptions {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.tenantOption {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  width: 100%;
+  border: 1px solid var(--shell-line);
+  border-radius: 11px;
+  padding: 0.8rem;
+  text-align: left;
+  background: var(--shell-surface);
+  color: var(--shell-text);
+  cursor: pointer;
+}
+.tenantOption[aria-pressed="true"] {
+  border-color: var(--shell-accent);
+  background: var(--shell-accent-soft);
+}
+.tenantOption > span:nth-child(2),
+.tenantSelection > div {
+  flex: 1;
+  min-width: 130px;
+}
+.tenantOption strong,
+.tenantSelection strong {
+  display: block;
+  font-size: 0.8rem;
+}
+.tenantOption small,
+.tenantSelection small {
+  display: block;
+  color: var(--shell-muted);
+  font-size: 0.7rem;
+  margin-top: 0.25rem;
+}
+.tenantOption > b {
+  font-size: 0.68rem;
+  color: var(--shell-accent);
+}
+.tenantOption > svg,
+.tenantSelection > svg {
+  color: var(--shell-accent);
+  flex-shrink: 0;
+}
+.tenantSelection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  align-items: center;
+  padding: 0.9rem;
+  border: 1px solid var(--shell-accent);
+  border-radius: 11px;
+  background: var(--shell-accent-soft);
+}
 .checkRow {
   display: flex;
   align-items: center;
