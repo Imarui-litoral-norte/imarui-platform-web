@@ -13,7 +13,7 @@
     "test:journey": "node ./scripts/test-journey.mjs",
     "test": "npm run test:dto-analytics && npm run test:journey && npm run test:receivables && npm run test:iam && npm run test:iiam-auth && npm run test:extrator",
     "test:extrator": "node ./scripts/test-extrator-period.mjs && node ./scripts/test-extrator-annual.mjs && node ./scripts/test-extrator-destinations-ui.mjs && node ./scripts/test-extrator-auth.mjs",
-    "test:iam": "node ./scripts/test-iam.mjs",
+    "test:iam": "node ./scripts/test-iam.mjs && node ./scripts/test-iam-management.mjs",
     "test:iiam-auth": "node ./scripts/test-iiam-auth.mjs",
     "test:receivables": "node ./scripts/test-receivables.mjs",
     "typecheck": "tsc --noEmit",
