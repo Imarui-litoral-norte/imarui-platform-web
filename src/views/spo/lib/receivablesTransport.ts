@@ -21,7 +21,13 @@ async function receivablesResponse(path: string, signal: AbortSignal, accept: st
   }
   if (response.status === 401) { clearAuthSession(); throw new Error("Sua sessão expirou. Entre novamente."); }
   if (response.status === 403) throw new Error("Acesso negado. Solicite a permissão de consulta de boletos ao administrador.");
-  if (response.status === 404) throw new Error("Este título não está mais disponível na carteira atual. Atualize a lista.");
+  if (response.status === 404) {
+    if (accept.includes("text/csv"))
+      throw new Error("A exportação CSV não está disponível no servidor. Solicite a atualização do serviço de boletos.");
+    if (/\/titles\/[^/?]+\/[^/?]+\/[^/?]+\/[^/?]+(?:\?|$)/.test(path))
+      throw new Error("Este título não está mais disponível na carteira atual. Atualize a lista.");
+    throw new Error("O serviço de boletos não está disponível neste endereço. Solicite a verificação do servidor.");
+  }
   if (response.status === 400) throw new Error("Filtros inválidos. Revise os períodos e aplique os filtros novamente.");
   if (!response.ok) throw new Error("Não foi possível consultar a carteira. Tente atualizar novamente.");
   return response;

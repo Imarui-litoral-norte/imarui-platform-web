@@ -85,6 +85,10 @@ try {
     globalThis.fetch = async () => new Response(null, { status });
     await assert.rejects(transport.receivablesDownload("/export", controller.signal), message);
   }
+  globalThis.fetch = async () => new Response(null, { status: 404 });
+  await assert.rejects(transport.receivablesDownload("/api/v1/receivables/titles/export", controller.signal), /exportação CSV não está disponível no servidor/);
+  await assert.rejects(transport.receivablesRequest("/api/v1/receivables/titles/1/10/100/0?status=ALL", controller.signal), /Este título não está mais disponível/);
+  await assert.rejects(transport.receivablesRequest("/api/v1/receivables/titles", controller.signal), /serviço de boletos não está disponível neste endereço/);
   globalThis.fetch = async () => new Response("{}", { headers: { "Content-Type": "application/json" } });
   await assert.rejects(transport.receivablesDownload("/export", controller.signal), /CSV válido/);
   globalThis.fetch = async () => new Response(null, { status: 401 });
