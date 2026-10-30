@@ -1,11 +1,18 @@
 import type { Dashboard, Detail, Query, ReceivablesApi, Title } from "../model/types";
 
 type Transport = (path: string, signal: AbortSignal) => Promise<unknown>;
+type DownloadTransport = (path: string, signal: AbortSignal) => ReturnType<ReceivablesApi["exportCsv"]>;
 export function queryString(query: Query): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
     if (value !== "" && value !== undefined && value !== null) params.set(key, String(value));
   }
+  return params.toString();
+}
+export function exportQueryString(query: Query): string {
+  const params = new URLSearchParams(queryString(query));
+  params.delete("page");
+  params.delete("size");
   return params.toString();
 }
 function validTitle(row: Title): boolean {
@@ -42,8 +49,9 @@ export function normalizeDetail(value: unknown): Detail {
     throw new Error("Resposta inválida do detalhe do boleto.");
   return data;
 }
-export function createReceivablesApi(request: Transport): ReceivablesApi {
+export function createReceivablesApi(request: Transport, download: DownloadTransport): ReceivablesApi {
   return {
+    exportCsv: (query, signal) => download(`/api/v1/receivables/titles/export?${exportQueryString(query)}`, signal),
     dashboard: async (query, signal) => normalizeDashboard(await request(
       `/api/v1/receivables/titles?${queryString(query)}`, signal)),
     detail: async (title, query, paymentPage, signal) => normalizeDetail(await request(

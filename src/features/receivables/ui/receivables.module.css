@@ -1,6 +1,8 @@
 .root { color: var(--shell-text); padding: clamp(16px, 3vw, 28px); border: 1px solid var(--shell-line); background: var(--shell-surface); border-radius: 28px; }
 .header, .listHeader, .pagination, .detailHeader { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
 .header h1 { font: 2.4rem Georgia, serif; margin: 8px 0; letter-spacing: -.04em; }
+.headerActions { display: flex; flex-wrap: wrap; gap: 8px; }
+.filterFields { border: 0; padding: 0; margin: 0; min-width: 0; }
 .eyebrow { font-size: .68rem; color: var(--shell-accent); text-transform: uppercase; letter-spacing: .22em; font-weight: 700; margin: 0; }
 .subtitle, .muted { color: var(--shell-muted); font-size: .8rem; line-height: 1.65; }
 .root button, .dialog button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 9px 13px; border-radius: 10px; background: var(--shell-surface); color: var(--shell-text); border: 1px solid var(--shell-line-strong); cursor: pointer; font-size: .78rem; font-weight: 600; }

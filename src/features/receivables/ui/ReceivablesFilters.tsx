@@ -8,6 +8,7 @@ export default function ReceivablesFilters({ draft, setDraft, options, busy, app
   const field = (key: keyof Query) => ({ value: String(draft[key]), onChange:
     (event: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setDraft({ ...draft, [key]: event.target.value }) });
   return <form className={styles.filters} onSubmit={event => { event.preventDefault(); apply(); }}>
+    <fieldset className={styles.filterFields} disabled={busy}>
     <div className={styles.filterRow}>
       <label className={styles.search}>Cliente ou título<input {...field("search")} placeholder="Nome, código do cliente ou título" maxLength={100} /></label>
       <label>Situação<select {...field("status")}>{Object.entries(situationLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
@@ -32,6 +33,7 @@ export default function ReceivablesFilters({ draft, setDraft, options, busy, app
       </div>
       <p className={styles.muted}>Sem período histórico informado, a consulta usa do início do ano até hoje. As datas de emissão e vencimento filtram a carteira; o histórico analisa pagamentos.</p>
     </details>
+    </fieldset>
   </form>;
 }
 

@@ -37,6 +37,7 @@ export type Detail = { selected: Title; customerTitles: Title[]; payments: Payme
   paymentSize: number; totalPayments: number; metadata: Metadata };
 export type ReceivablesApi = {
   dashboard: (query: Query, signal: AbortSignal) => Promise<Dashboard>;
+  exportCsv: (query: Query, signal: AbortSignal) => Promise<{ blob: Blob; filename: string }>;
   detail: (title: Title, query: Query, paymentPage: number, signal: AbortSignal) => Promise<Detail>;
 };
 

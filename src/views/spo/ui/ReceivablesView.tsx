@@ -2,9 +2,9 @@
 
 import ReceivablesDashboard from "@/features/receivables/ui/ReceivablesDashboard";
 import { createReceivablesApi } from "@/features/receivables/api/receivablesApi";
-import { receivablesRequest } from "../lib/receivablesTransport";
+import { receivablesDownload, receivablesRequest } from "../lib/receivablesTransport";
 
-const api = createReceivablesApi(receivablesRequest);
+const api = createReceivablesApi(receivablesRequest, receivablesDownload);
 export default function ReceivablesView() {
   return <ReceivablesDashboard api={api} />;
 }
