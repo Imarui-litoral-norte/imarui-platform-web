@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Download, RefreshCw, ArrowRight, Wallet, Clock3, CalendarDays, ShieldAlert } from "lucide-react";
-import { exportQueryString } from "../api/receivablesApi";
+import { exportQueryString, supportsAnnualRisk } from "../api/receivablesApi";
 import type { Dashboard, Query, ReceivablesApi, Title } from "../model/types";
 import { date, historyLabels, initialQuery, money, priorityLabels, situationLabels, titleKey } from "../lib/formatters";
 import ReceivablesFilters from "./ReceivablesFilters";
@@ -87,7 +87,8 @@ export default function ReceivablesDashboard({ api }: { api: ReceivablesApi }) {
       {!data && loading && <p className={styles.empty} role="status">Carregando indicadores e títulos…</p>}
     </div>
     {data && data.metadata.historyStatus !== "AVAILABLE" && <div className={styles.note}><strong>{historyLabels[data.metadata.historyStatus] ?? "Histórico indisponível"} no período consultado.</strong> O risco anual aparece separadamente em cada cliente e depende da cobertura e da amostra anual.</div>}
-    <ReceivablesFilters draft={draft} setDraft={setDraft} options={data?.filters} busy={busy} apply={apply} reset={reset} />
+    {data && !supportsAnnualRisk(data) && <div className={styles.error} role="alert">A versão do backend em execução ainda não oferece a análise anual de risco. O filtro de risco ficará disponível após concluir a atualização do servidor.</div>}
+    <ReceivablesFilters draft={draft} setDraft={setDraft} options={data?.filters} busy={busy} riskAvailable={!!data && supportsAnnualRisk(data)} apply={apply} reset={reset} />
     <p id="receivables-export-help" className={styles.muted}>{pendingFilters ? "Há filtros alterados. Clique em Aplicar filtros para atualizar a lista e liberar a exportação." : "O CSV inclui todas as páginas dos filtros e da ordenação aplicados. A exportação consulta a carteira novamente."}</p>
     {exportError && <div className={styles.error} role="alert">{exportError}</div>}
     <p className={styles.muted} role="status">{exporting ? "Gerando CSV de todos os títulos filtrados…" : exportStatus}</p>

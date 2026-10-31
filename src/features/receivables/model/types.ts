@@ -27,6 +27,7 @@ export type Query = {
   status: Situation; priority: Priority; riskLevel: string; sort: string; page: number; size: number;
 };
 export type Metadata = {
+  riskModel?: string;
   queriedAt: string; sourceUpdatedAt: string | null; asOf: string; historyFrom: string; historyTo: string;
   historyStatus: string; paymentEvents: number; duplicatePaymentRows: number; invalidPaymentEvents: number;
   historyUnits: number[]; warnings: string[];

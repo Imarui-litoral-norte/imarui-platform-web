@@ -19,6 +19,8 @@ Lista e detalhe exibem o campo `risk` calculado pelo backend (`BEHAVIOURAL_V1`),
 `riskLevel` filtra a lista/resumo/CSV; `RISK_DESC` ordena por risco. O frontend não recalcula o índice.
 A janela de pagamentos afeta apenas `history`; a análise anual usa vencimentos de janeiro até hoje
 e considera toda a carteira elegível do cliente/unidade, independentemente dos filtros visuais.
-Ausência de amostra não implica baixo risco. Servidor sem `risk` apresenta aviso de versão anterior.
+Ausência de amostra não implica baixo risco. `metadata.riskModel=BEHAVIOURAL_V1` identifica a capacidade
+de análise anual, inclusive em respostas vazias. Backend antigo apresenta aviso na lista e controles
+de risco desabilitados. A API do frontend rejeita filtros de risco sem suporte ou linhas de outro nível.
 Metodologia e limites estão em `logimarui-core-api/docs/receivables-risk.md` no repositório backend.
 

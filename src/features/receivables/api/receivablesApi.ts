@@ -2,6 +2,9 @@ import type { Dashboard, Detail, Query, ReceivablesApi, Risk, Title } from "../m
 
 type Transport = (path: string, signal: AbortSignal) => Promise<unknown>;
 type DownloadTransport = (path: string, signal: AbortSignal) => ReturnType<ReceivablesApi["exportCsv"]>;
+export function supportsAnnualRisk(data: Pick<Dashboard, "metadata">): boolean {
+  return data.metadata.riskModel === "BEHAVIOURAL_V1";
+}
 export function queryString(query: Query): string {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
@@ -48,6 +51,7 @@ export function normalizeDashboard(value: unknown): Dashboard {
     !Number.isInteger(data.size) || !Number.isInteger(data.totalPages) ||
     !Array.isArray(data.items) || !data.items.every(validTitle) || !data.metadata ||
     typeof data.metadata.queriedAt !== "string" || !data.metadata.policy || !data.metadata.portfolioCoverage ||
+    (supportsAnnualRisk(data) && data.items.some(row => !row.risk)) ||
     !Array.isArray(data.metadata.warnings) || !data.filters ||
     ![data.filters.units, data.filters.sellers, data.filters.supervisors].every(Array.isArray) ||
     data.total !== data.summary.titles || !Number.isFinite(data.summary.pendingAmount) ||
@@ -61,6 +65,7 @@ export function normalizeDetail(value: unknown): Detail {
   if (!data || !validTitle(data.selected) || !Array.isArray(data.customerTitles) ||
     !data.customerTitles.every(validTitle) || !Array.isArray(data.payments) ||
     !Number.isInteger(data.totalPayments) || !data.metadata ||
+    (supportsAnnualRisk(data) && [data.selected, ...data.customerTitles].some(row => !row.risk)) ||
     !data.payments.every(p => p && Number.isInteger(p.title) && typeof p.installment === "string" &&
       (p.amount === null || Number.isFinite(p.amount))))
     throw new Error("Resposta inválida do detalhe do boleto.");
@@ -69,8 +74,14 @@ export function normalizeDetail(value: unknown): Detail {
 export function createReceivablesApi(request: Transport, download: DownloadTransport): ReceivablesApi {
   return {
     exportCsv: (query, signal) => download(`/api/v1/receivables/titles/export?${exportQueryString(query)}`, signal),
-    dashboard: async (query, signal) => normalizeDashboard(await request(
-      `/api/v1/receivables/titles?${queryString(query)}`, signal)),
+    dashboard: async (query, signal) => {
+      const data = normalizeDashboard(await request(`/api/v1/receivables/titles?${queryString(query)}`, signal));
+      if ((query.riskLevel || query.sort === "RISK_DESC") && !supportsAnnualRisk(data))
+        throw new Error("O backend em execução ainda não oferece os filtros de risco. Conclua a atualização do servidor e consulte novamente.");
+      if (query.riskLevel && data.items.some(row => row.risk?.level !== Number(query.riskLevel)))
+        throw new Error("O servidor retornou clientes fora do nível de risco selecionado. Atualize a consulta e verifique a versão do servidor.");
+      return data;
+    },
     detail: async (title, query, paymentPage, signal) => normalizeDetail(await request(
       `/api/v1/receivables/titles/${title.unit}/${title.customer}/${title.title}/${encodeURIComponent(title.installment)}?${queryString(query)}&paymentPage=${paymentPage}&paymentSize=20`, signal)),
   };

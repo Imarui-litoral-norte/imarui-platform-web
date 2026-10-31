@@ -13,7 +13,7 @@ function load(file, imports = {}) {
   });
   return moduleRecord.exports;
 }
-const { normalizeDashboard, normalizeDetail, createReceivablesApi, queryString, exportQueryString } = load("src/features/receivables/api/receivablesApi.ts");
+const { normalizeDashboard, normalizeDetail, createReceivablesApi, queryString, exportQueryString, supportsAnnualRisk } = load("src/features/receivables/api/receivablesApi.ts");
 const { initialQuery, date, titleKey } = load("src/features/receivables/lib/formatters.ts");
 const query = initialQuery();
 assert.equal(new URLSearchParams(queryString({ ...query, search: "A & B / ?=1" })).get("search"), "A & B / ?=1");
@@ -38,6 +38,12 @@ const risk = { status: "AVAILABLE", model: "BEHAVIOURAL_V1", year: 2026, from: "
   otherAmountLatePercent: 14.29, exposureToOnTimeMedian: 3,
   components: [{ code: "FREQUENCY", points: 12, maximum: 30 }], reasons: ["4 de 10 títulos atrasaram."] };
 assert.equal(normalizeDashboard({ ...dashboard, items: [{ ...title, risk }] }).items[0].risk.level, 3);
+const currentDashboard = { ...dashboard, metadata: { ...dashboard.metadata, riskModel: "BEHAVIOURAL_V1" }, items: [{ ...title, risk }] };
+assert.equal(supportsAnnualRisk(dashboard), false);
+assert.equal(supportsAnnualRisk(currentDashboard), true);
+assert.throws(() => normalizeDashboard({ ...currentDashboard, items: [title] }), /inválida/);
+assert.equal(supportsAnnualRisk(normalizeDashboard({ ...currentDashboard, items: [], total: 0,
+  summary: { ...dashboard.summary, titles: 0, customers: 0, pendingAmount: 0, dueTodayTitles: 0 } })), true);
 for (const invalid of [{ ...risk, level: 6 }, { ...risk, weightedDelayDays: NaN }, { ...risk, components: null }]) {
   assert.throws(() => normalizeDashboard({ ...dashboard, items: [{ ...title, risk: invalid }] }), /inválida/);
 }
@@ -53,6 +59,13 @@ assert.match(riskMarkup, /4 de 10 observados/);
 assert.match(riskMarkup, /Frequência de atrasos: 12\/30 pontos/);
 assert.match(renderToStaticMarkup(React.createElement(CustomerRisk, { risk: { ...risk, level: null, score: null, status: "INSUFFICIENT" } })), /Risco não estimado/);
 assert.match(renderToStaticMarkup(React.createElement(CustomerRisk)), /servidor ainda não disponibiliza/);
+const { default: ReceivablesFilters } = load("src/features/receivables/ui/ReceivablesFilters.tsx", {
+  "react/jsx-runtime": await import("react/jsx-runtime"),
+  "../lib/formatters": load("src/features/receivables/lib/formatters.ts"), "./receivables.module.css": { default: {} },
+});
+const filterProps = { draft: query, setDraft() {}, busy: false, apply() {}, reset() {} };
+assert.match(renderToStaticMarkup(React.createElement(ReceivablesFilters, { ...filterProps, riskAvailable: false })), /Risco do cliente<select disabled=""/);
+assert.doesNotMatch(renderToStaticMarkup(React.createElement(ReceivablesFilters, { ...filterProps, riskAvailable: true })), /Risco do cliente<select disabled/);
 const controller = new AbortController();
 let requested;
 const file = { blob: new Blob(["\uFEFFCliente;Saldo\r\nJosé;10,10\r\n"], { type: "text/csv" }), filename: "boletos-2026-10-30.csv" };
@@ -61,6 +74,11 @@ const api = createReceivablesApi(async (path, signal) => { requested = { path, s
 await api.dashboard(query, controller.signal);
 assert.equal(requested.signal, controller.signal);
 assert.match(requested.path, /^\/api\/v1\/receivables\/titles\?/);
+await assert.rejects(api.dashboard({ ...query, riskLevel: "3" }, controller.signal), /backend em execução ainda não oferece/);
+await assert.rejects(api.dashboard({ ...query, sort: "RISK_DESC" }, controller.signal), /backend em execução ainda não oferece/);
+const currentApi = createReceivablesApi(async () => currentDashboard, async () => file);
+assert.equal((await currentApi.dashboard({ ...query, riskLevel: "3" }, controller.signal)).items[0].risk.level, 3);
+await assert.rejects(currentApi.dashboard({ ...query, riskLevel: "4" }, controller.signal), /fora do nível de risco selecionado/);
 const filtered = { ...query, search: "José & Cia; /?=", unit: "1", seller: "7", supervisor: "9",
   status: "OVERDUE", priority: "OVERDUE", dueFrom: "2026-10-01", dueTo: "2026-10-30",
   issuedFrom: "2026-09-01", issuedTo: "2026-09-30", historyFrom: "2026-01-01", historyTo: "2026-10-30",
