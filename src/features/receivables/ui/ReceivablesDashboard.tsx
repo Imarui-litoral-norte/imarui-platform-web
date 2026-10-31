@@ -7,6 +7,7 @@ import type { Dashboard, Query, ReceivablesApi, Title } from "../model/types";
 import { date, historyLabels, initialQuery, money, priorityLabels, situationLabels, titleKey } from "../lib/formatters";
 import ReceivablesFilters from "./ReceivablesFilters";
 import ReceivableDetails from "./ReceivableDetails";
+import { RiskBadge } from "./CustomerRisk";
 import styles from "./receivables.module.css";
 
 export default function ReceivablesDashboard({ api }: { api: ReceivablesApi }) {
@@ -85,7 +86,7 @@ export default function ReceivablesDashboard({ api }: { api: ReceivablesApi }) {
       {cards.map(card => <div className={`${styles.metric} ${styles[card.tone]}`} key={card.label}><div><span>{card.label}</span><card.icon size={19} aria-hidden /></div><strong>{card.value}</strong><small>{card.caption}</small></div>)}
       {!data && loading && <p className={styles.empty} role="status">Carregando indicadores e títulos…</p>}
     </div>
-    {data && data.metadata.historyStatus !== "AVAILABLE" && <div className={styles.note}><strong>{historyLabels[data.metadata.historyStatus] ?? "Histórico indisponível"}.</strong> A carteira continua disponível. Alertas preventivos por recorrência dependem de histórico suficiente.</div>}
+    {data && data.metadata.historyStatus !== "AVAILABLE" && <div className={styles.note}><strong>{historyLabels[data.metadata.historyStatus] ?? "Histórico indisponível"} no período consultado.</strong> O risco anual aparece separadamente em cada cliente e depende da cobertura e da amostra anual.</div>}
     <ReceivablesFilters draft={draft} setDraft={setDraft} options={data?.filters} busy={busy} apply={apply} reset={reset} />
     <p id="receivables-export-help" className={styles.muted}>{pendingFilters ? "Há filtros alterados. Clique em Aplicar filtros para atualizar a lista e liberar a exportação." : "O CSV inclui todas as páginas dos filtros e da ordenação aplicados. A exportação consulta a carteira novamente."}</p>
     {exportError && <div className={styles.error} role="alert">{exportError}</div>}
@@ -97,7 +98,7 @@ export default function ReceivablesDashboard({ api }: { api: ReceivablesApi }) {
           <td><strong>{row.customerName}</strong><small>Cliente {row.customer} · UNB {row.unit}</small><small>Título {row.title} / parcela {row.installment}</small></td>
           <td><strong>{date(row.dueOn)}</strong><small className={row.status === "OVERDUE" ? styles.redText : ""}>{row.daysOverdue !== null && row.daysOverdue > 0 ? `${row.daysOverdue} dia(s) em atraso` : situationLabels[row.status]}</small></td>
           <td className={styles.amount}>{money(row.pendingAmount)}</td>
-          <td><span className={`${styles.badge} ${styles[row.priority.toLowerCase()]}`}>{priorityLabels[row.priority]}</span><small>{row.reasons[0]}</small></td>
+          <td><span className={`${styles.badge} ${styles[row.priority.toLowerCase()]}`}>{priorityLabels[row.priority]}</span><small><RiskBadge risk={row.risk} /></small><small>{row.reasons[0]}</small>{row.risk && <small>{row.risk.lateTitles}/{row.risk.observedTitles} títulos observados com atraso em {row.risk.year}</small>}</td>
           <td><span className={styles.historyLabel}>{historyLabels[row.history.status] ?? row.history.status}</span>{row.history.events > 0 && <small>{row.history.lateEvents}/{row.history.events} pagamentos após vencimento</small>}</td>
           <td><button onClick={() => setSelected(row)} className={styles.iconButton} aria-label={`Abrir título ${row.title} de ${row.customerName}`}>Detalhes <ArrowRight size={14} aria-hidden /></button></td>
         </tr>)}</tbody>
@@ -113,7 +114,7 @@ export default function ReceivablesDashboard({ api }: { api: ReceivablesApi }) {
     {data && <details className={styles.coverage}><summary>Cobertura dos dados e regra de prioridade</summary>
       <p>Carteira disponível: {data.metadata.portfolioCoverage.titles} títulos; emissões de {date(data.metadata.portfolioCoverage.firstIssuedOn)} a {date(data.metadata.portfolioCoverage.lastIssuedOn)}. Vencimentos de {date(data.metadata.portfolioCoverage.firstDueOn)} a {date(data.metadata.portfolioCoverage.lastDueOn)}.</p>
       <p>Histórico consultado: {date(data.metadata.historyFrom)} a {date(data.metadata.historyTo)}; {data.metadata.paymentEvents} eventos associados aos códigos dos clientes da carteira. Indicadores usam cliente e unidade confirmados.</p>
-      <p>Alerta preventivo: vencimento em até {data.metadata.policy.upcomingDays} dias, ao menos {data.metadata.policy.minimumHistoryTitles} títulos no histórico e {data.metadata.policy.recurringLateTitles} títulos com pagamentos após vencimento nos últimos {data.metadata.policy.recentDays} dias.</p>
+      <p>Alerta preventivo: vencimento em até {data.metadata.policy.upcomingDays} dias e cliente com risco anual 3, 4 ou 5. O risco exige ao menos {Math.max(3, data.metadata.policy.minimumHistoryTitles)} títulos com pagamentos válidos e vencimento no ano até hoje, na mesma unidade confirmada. A janela recente usa {data.metadata.policy.recentDays} dias. Os detalhes mostram métricas e motivos.</p>
       <ul>{data.metadata.warnings.map(w => <li key={w}>{w}</li>)}</ul>
     </details>}
     {selected && <ReceivableDetails key={titleKey(selected)} title={selected} query={loadedQuery} api={api} refresh={refresh} close={() => setSelected(null)} />}

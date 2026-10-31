@@ -12,3 +12,13 @@ Histórico vazio ou insuficiente é explícito e não produz classificação de 
 Leia o contrato completo em `logimarui-core-api/docs/receivables.md` no workspace.
 Testes de contrato: `npm run test:receivables`. Verificações: typecheck, lint e build.
 
+# Risco comportamental anual (31/10/2026)
+
+Lista e detalhe exibem o campo `risk` calculado pelo backend (`BEHAVIOURAL_V1`), com nível 1–5,
+índice 0–100, contagem anual por título/parcela, métricas monetárias, componentes e motivos.
+`riskLevel` filtra a lista/resumo/CSV; `RISK_DESC` ordena por risco. O frontend não recalcula o índice.
+A janela de pagamentos afeta apenas `history`; a análise anual usa vencimentos de janeiro até hoje
+e considera toda a carteira elegível do cliente/unidade, independentemente dos filtros visuais.
+Ausência de amostra não implica baixo risco. Servidor sem `risk` apresenta aviso de versão anterior.
+Metodologia e limites estão em `logimarui-core-api/docs/receivables-risk.md` no repositório backend.
+

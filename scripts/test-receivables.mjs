@@ -4,7 +4,8 @@ import ts from "typescript";
 
 function load(file, imports = {}) {
   const source = fs.readFileSync(file, "utf8");
-  const code = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
+  const code = ts.transpileModule(source, { fileName: file, compilerOptions: { module: ts.ModuleKind.CommonJS,
+    target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   const moduleRecord = { exports: {} };
   new Function("exports", "module", "require", code)(moduleRecord.exports, moduleRecord, name => {
     if (!(name in imports)) throw new Error(`Unexpected import: ${name}`);
@@ -30,6 +31,28 @@ assert.equal(normalizeDashboard(dashboard).items[0].history.latePercent, null);
 assert.throws(() => normalizeDashboard({ ...dashboard, total: 2 }), /inválida/);
 assert.throws(() => normalizeDashboard({ ...dashboard, items: [{ ...title, pendingAmount: NaN }] }), /inválida/);
 assert.throws(() => normalizeDashboard({ ...dashboard, items: [{ ...title, priority: "CALCULATED_BY_UI" }] }), /inválida/);
+const risk = { status: "AVAILABLE", model: "BEHAVIOURAL_V1", year: 2026, from: "2026-01-01", to: "2026-10-31",
+  level: 3, score: 42, observedTitles: 10, lateTitles: 4, lateTitlePercent: 40, lateAmountPercent: 60,
+  weightedDelayDays: 10, recentLateTitles: 3, openOverdueAmount: 50, maximumOpenDelayDays: 10,
+  onTimeMedian: 100, highAmountTitles: 3, highAmountLatePercent: 100, otherAmountTitles: 7,
+  otherAmountLatePercent: 14.29, exposureToOnTimeMedian: 3,
+  components: [{ code: "FREQUENCY", points: 12, maximum: 30 }], reasons: ["4 de 10 títulos atrasaram."] };
+assert.equal(normalizeDashboard({ ...dashboard, items: [{ ...title, risk }] }).items[0].risk.level, 3);
+for (const invalid of [{ ...risk, level: 6 }, { ...risk, weightedDelayDays: NaN }, { ...risk, components: null }]) {
+  assert.throws(() => normalizeDashboard({ ...dashboard, items: [{ ...title, risk: invalid }] }), /inválida/);
+}
+const React = await import("react");
+const { renderToStaticMarkup } = await import("react-dom/server");
+const { default: CustomerRisk } = load("src/features/receivables/ui/CustomerRisk.tsx", {
+  "react/jsx-runtime": await import("react/jsx-runtime"),
+  "../lib/formatters": load("src/features/receivables/lib/formatters.ts"), "./receivables.module.css": { default: {} },
+});
+const riskMarkup = renderToStaticMarkup(React.createElement(CustomerRisk, { risk }));
+assert.match(riskMarkup, /Cliente risco 3\/5/);
+assert.match(riskMarkup, /4 de 10 observados/);
+assert.match(riskMarkup, /Frequência de atrasos: 12\/30 pontos/);
+assert.match(renderToStaticMarkup(React.createElement(CustomerRisk, { risk: { ...risk, level: null, score: null, status: "INSUFFICIENT" } })), /Risco não estimado/);
+assert.match(renderToStaticMarkup(React.createElement(CustomerRisk)), /servidor ainda não disponibiliza/);
 const controller = new AbortController();
 let requested;
 const file = { blob: new Blob(["\uFEFFCliente;Saldo\r\nJosé;10,10\r\n"], { type: "text/csv" }), filename: "boletos-2026-10-30.csv" };
@@ -41,7 +64,7 @@ assert.match(requested.path, /^\/api\/v1\/receivables\/titles\?/);
 const filtered = { ...query, search: "José & Cia; /?=", unit: "1", seller: "7", supervisor: "9",
   status: "OVERDUE", priority: "OVERDUE", dueFrom: "2026-10-01", dueTo: "2026-10-30",
   issuedFrom: "2026-09-01", issuedTo: "2026-09-30", historyFrom: "2026-01-01", historyTo: "2026-10-30",
-  sort: "AMOUNT_DESC", page: 3, size: 100 };
+  riskLevel: "3", sort: "RISK_DESC", page: 3, size: 100 };
 assert.equal(await api.exportCsv(filtered, controller.signal), file);
 assert.equal(requested.signal, controller.signal);
 assert.match(requested.path, /^\/api\/v1\/receivables\/titles\/export\?/);

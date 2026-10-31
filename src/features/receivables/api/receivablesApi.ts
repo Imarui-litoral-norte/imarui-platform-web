@@ -1,4 +1,4 @@
-import type { Dashboard, Detail, Query, ReceivablesApi, Title } from "../model/types";
+import type { Dashboard, Detail, Query, ReceivablesApi, Risk, Title } from "../model/types";
 
 type Transport = (path: string, signal: AbortSignal) => Promise<unknown>;
 type DownloadTransport = (path: string, signal: AbortSignal) => ReturnType<ReceivablesApi["exportCsv"]>;
@@ -15,6 +15,23 @@ export function exportQueryString(query: Query): string {
   params.delete("size");
   return params.toString();
 }
+function validRisk(risk: Risk | undefined): boolean {
+  // Permit gradual deployment with the previous server contract.
+  if (risk === undefined) return true;
+  return !!risk && typeof risk.status === "string" && typeof risk.model === "string" &&
+    Number.isInteger(risk.year) && typeof risk.from === "string" && typeof risk.to === "string" &&
+    (risk.level === null || Number.isInteger(risk.level) && risk.level >= 1 && risk.level <= 5) &&
+    (risk.score === null || Number.isInteger(risk.score) && risk.score >= 0 && risk.score <= 100) &&
+    [risk.observedTitles, risk.lateTitles, risk.recentLateTitles, risk.maximumOpenDelayDays,
+      risk.highAmountTitles, risk.otherAmountTitles].every(n => Number.isInteger(n) && n >= 0) &&
+    [risk.lateTitlePercent, risk.lateAmountPercent, risk.weightedDelayDays, risk.onTimeMedian,
+      risk.highAmountLatePercent, risk.otherAmountLatePercent, risk.exposureToOnTimeMedian]
+      .every(n => n === null || Number.isFinite(n) && n >= 0) &&
+    Number.isFinite(risk.openOverdueAmount) && risk.openOverdueAmount >= 0 &&
+    Array.isArray(risk.reasons) && risk.reasons.every(r => typeof r === "string") &&
+    Array.isArray(risk.components) && risk.components.every(c => c && typeof c.code === "string" &&
+      Number.isInteger(c.points) && Number.isInteger(c.maximum) && c.points >= 0 && c.points <= c.maximum);
+}
 function validTitle(row: Title): boolean {
   return !!row && typeof row.customerName === "string" && Number.isInteger(row.unit) &&
     Number.isInteger(row.customer) && Number.isInteger(row.title) && typeof row.installment === "string" &&
@@ -22,7 +39,7 @@ function validTitle(row: Title): boolean {
     ["OVERDUE", "DUE_TODAY", "UPCOMING", "UNKNOWN_DUE"].includes(row.status) &&
     ["OVERDUE", "PREVENTIVE", "DUE_SOON", "MONITOR", "DATA_REVIEW"].includes(row.priority) &&
     Array.isArray(row.reasons) && row.reasons.every(r => typeof r === "string") &&
-    !!row.history && typeof row.history.status === "string" && Number.isInteger(row.history.events) &&
+    !!row.history && typeof row.history.status === "string" && Number.isInteger(row.history.events) && validRisk(row.risk) &&
     (row.dueOn === null || /^\d{4}-\d{2}-\d{2}$/.test(row.dueOn));
 }
 export function normalizeDashboard(value: unknown): Dashboard {

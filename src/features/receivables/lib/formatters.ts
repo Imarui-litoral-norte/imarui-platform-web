@@ -12,6 +12,6 @@ export const date = (value: string | null) => value ? value.slice(0, 10).split("
 export const titleKey = (row: Title) => `${row.unit}:${row.customer}:${row.title}:${row.installment}`;
 export function initialQuery(): Query {
   return { search: "", unit: "", seller: "", supervisor: "", dueFrom: "", dueTo: "", issuedFrom: "", issuedTo: "",
-    historyFrom: "", historyTo: "", status: "ALL", priority: "ALL", sort: "PRIORITY", page: 0, size: 25 };
+    historyFrom: "", historyTo: "", status: "ALL", priority: "ALL", riskLevel: "", sort: "PRIORITY", page: 0, size: 25 };
 }
 

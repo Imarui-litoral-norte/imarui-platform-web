@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import type { Detail, Query, ReceivablesApi, Title } from "../model/types";
 import { date, historyLabels, money, priorityLabels, situationLabels, titleKey } from "../lib/formatters";
 import styles from "./receivables.module.css";
+import CustomerRisk from "./CustomerRisk";
 
 export default function ReceivableDetails({ title, query, api, refresh, close }: {
   title: Title; query: Query; api: ReceivablesApi; refresh: number; close: () => void;
@@ -46,7 +47,8 @@ export default function ReceivableDetails({ title, query, api, refresh, close }:
         <div><dt>Status da cobrança</dt><dd>{row.collectionStatus ?? "Não informado"}</dd></div>
       </dl>
       {row.lastContact && <p className={styles.note}>Último atendimento informado: {row.lastContact}</p>}
-      <h3>Comportamento de pagamento</h3>
+      <CustomerRisk risk={row.risk} />
+      <h3>Comportamento de pagamento no período consultado</h3>
       <p className={styles.note}>{historyLabels[row.history.status] ?? row.history.status}.
         {row.history.events > 0 && ` ${row.history.distinctTitles} títulos em ${row.history.events} eventos de pagamento; ${row.history.lateEvents} após o vencimento (${row.history.latePercent?.toLocaleString("pt-BR") ?? "—"}%). Maior atraso observado: ${row.history.maximumDelayDays ?? "—"} dia(s).`}
       </p>

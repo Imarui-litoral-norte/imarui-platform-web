@@ -10,12 +10,21 @@ export type Title = {
   originalAmount: number | null; pendingAmount: number; seller: number | null; supervisor: number | null;
   sourceRiskClass: number | null; collectionStatus: string | null; lastContact: string | null;
   status: Exclude<Situation, "ALL">; daysOverdue: number | null; priority: Exclude<Priority, "ALL">;
-  reasons: string[]; history: History;
+  reasons: string[]; history: History; risk?: Risk;
+};
+export type Risk = {
+  status: string; model: string; year: number; from: string; to: string;
+  level: number | null; score: number | null; observedTitles: number; lateTitles: number;
+  lateTitlePercent: number | null; lateAmountPercent: number | null; weightedDelayDays: number | null;
+  recentLateTitles: number; openOverdueAmount: number; maximumOpenDelayDays: number;
+  onTimeMedian: number | null; highAmountTitles: number; highAmountLatePercent: number | null;
+  otherAmountTitles: number; otherAmountLatePercent: number | null; exposureToOnTimeMedian: number | null;
+  components: { code: string; points: number; maximum: number }[]; reasons: string[];
 };
 export type Query = {
   search: string; unit: string; seller: string; supervisor: string; dueFrom: string; dueTo: string;
   issuedFrom: string; issuedTo: string; historyFrom: string; historyTo: string;
-  status: Situation; priority: Priority; sort: string; page: number; size: number;
+  status: Situation; priority: Priority; riskLevel: string; sort: string; page: number; size: number;
 };
 export type Metadata = {
   queriedAt: string; sourceUpdatedAt: string | null; asOf: string; historyFrom: string; historyTo: string;
