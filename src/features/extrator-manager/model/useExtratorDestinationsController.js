@@ -8,6 +8,7 @@ import {
   buildDestinationFormFromRule,
   DEFAULT_DESTINATION_FILTERS,
   serializeDestinationForm,
+  normalizeDestinationListeners,
 } from "@/features/extrator-manager/lib/extratorDestinations";
 import { formatDateTime } from "@/features/extrator-manager/lib/extratorFormat";
 import {
@@ -41,29 +42,8 @@ export function useExtratorDestinationsController({
   const formCandidate = formDraft || defaultForm;
   const listenOptions =
     destinationMeta?.listen_period_options_by_base?.[formCandidate?.base] || [];
-  const resolvedListenPeriodType = listenOptions.some(
-    (option) => option.id === formCandidate?.listenPeriodType,
-  )
-    ? formCandidate?.listenPeriodType
-    : listenOptions[0]?.id || destinationMeta?.listen_period_default || "todos";
-  const validListenModes = new Set(
-    (
-      destinationMeta?.listen_period_mode_options_by_base?.[
-        formCandidate?.base
-      ]?.[resolvedListenPeriodType] || []
-    ).map((option) => option.id),
-  );
   const form = formCandidate
-    ? {
-        ...formCandidate,
-        listenPeriodType: resolvedListenPeriodType,
-        listenPeriodModes:
-          resolvedListenPeriodType === "todos"
-            ? []
-            : (formCandidate.listenPeriodModes || []).filter((mode) =>
-                validListenModes.has(mode),
-              ),
-      }
+    ? normalizeDestinationListeners(formCandidate, destinationMeta)
     : null;
   const hasPayload = Boolean(destinationsPayload);
 
@@ -87,18 +67,7 @@ export function useExtratorDestinationsController({
       const draftUpdate =
         typeof nextValue === "function" ? nextValue(currentForm) : nextValue;
       const mergedForm = { ...currentForm, ...(draftUpdate || {}) };
-      const nextListenOptions =
-        destinationMeta?.listen_period_options_by_base?.[mergedForm.base] || [];
-      return {
-        ...mergedForm,
-        listenPeriodType: nextListenOptions.some(
-          (option) => option.id === mergedForm.listenPeriodType,
-        )
-          ? mergedForm.listenPeriodType
-          : nextListenOptions[0]?.id ||
-            destinationMeta?.listen_period_default ||
-            "todos",
-      };
+      return normalizeDestinationListeners(mergedForm, destinationMeta);
     });
   }
 

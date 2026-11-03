@@ -98,12 +98,14 @@ export function SelectInput({ children, ...props }) {
   );
 }
 
-export function CheckboxField({ checked, label, onChange }) {
+export function CheckboxField({ checked, label, onChange, disabled = false, value }) {
   return (
     <label className="inline-flex items-center gap-3 text-sm font-semibold text-[var(--shell-text)]">
       <input
         type="checkbox"
         checked={checked}
+        disabled={disabled}
+        value={value}
         onChange={onChange}
         className="h-4 w-4 rounded border-[color:var(--shell-line)] text-[var(--shell-accent)]"
       />

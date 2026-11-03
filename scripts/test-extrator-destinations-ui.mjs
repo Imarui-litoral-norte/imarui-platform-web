@@ -31,7 +31,7 @@ function loadSource(filename) {
 }
 
 const { default: Destinations } = loadSource(path.join(sourceRoot, "features/extrator-manager/ui/ExtratorDestinationsSection.jsx"));
-const { buildDestinationDefaultForm, buildDestinationFormFromRule, serializeDestinationForm } =
+const { buildDestinationDefaultForm, buildDestinationFormFromRule, serializeDestinationForm, normalizeDestinationListeners, toggleDestinationListenType } =
   loadSource(path.join(sourceRoot, "features/extrator-manager/lib/extratorDestinations.js"));
 const noop = () => {};
 const base = "12_06_01_especie";
@@ -39,6 +39,7 @@ const listenOptions = [
   { id: "todos", label: "Todas as atualizacoes" },
   { id: "anual", label: "Anual" },
   { id: "mensal", label: "Mensal" },
+  { id: "periodo_especifico", label: "Periodo especifico" },
 ];
 const meta = {
   base_options: [{ id: base, label: base }],
@@ -47,7 +48,8 @@ const meta = {
     { id: "ano_atual", label: "Ano atual" },
     { id: "ano_anterior", label: "Ano anterior" },
     { id: "ano_referencia", label: "Escolher ano" },
-  ] } },
+  ], mensal: [{ id: "mes_atual", label: "Mes atual" }, { id: "mes_anterior", label: "Mes anterior" }],
+  periodo_especifico: [{ id: "semana_atual", label: "Semana atual" }, { id: "semana_anterior", label: "Semana anterior" }], } },
 };
 function render(form) {
   return renderToStaticMarkup(createElement(Destinations, {
@@ -80,7 +82,7 @@ for (const [form, title] of [[created, "Novo destino"], [existing, "Editar desti
   assert.ok(html.includes("Anual:"), `${title}: annual destination preview missing`);
 }
 
-const annualEdit = { ...existing, listenPeriodType: "anual", listenPeriodModes: ["ano_anterior"],
+const annualEdit = { ...existing, listenPeriodTypes: ["anual"], listenPeriodModesByType: { anual: ["ano_anterior"] },
   arquivoTemplateAnual: "{rotina}__{ano}", pastaTemplateAnual: "Anual\\{ano}" };
 const html = render(annualEdit);
 for (const text of ["Arquivo anual", "Pasta anual", "Ano atual", "Ano anterior", "Escolher ano", "Anual\\2026"]) {
@@ -91,6 +93,32 @@ const saved = serializeDestinationForm(annualEdit, "fixture");
 const reopened = buildDestinationFormFromRule(saved);
 assert.equal(reopened.arquivoTemplateAnual, annualEdit.arquivoTemplateAnual);
 assert.equal(reopened.pastaTemplateAnual, annualEdit.pastaTemplateAnual);
-assert.deepEqual(reopened.listenPeriodModes, ["ano_anterior"]);
+assert.deepEqual(reopened.listenPeriodModesByType, { anual: ["ano_anterior"] });
 assert.ok(render(reopened).includes("Arquivo anual"));
 console.log("Extrator UI: annual fields, listener, modes and preview render in create/edit, including existing rules and save/reopen.");
+
+const legacy = buildDestinationFormFromRule({ listen_period_type: "mensal", listen_period_modes: ["mes_anterior"] });
+assert.deepEqual(legacy.listenPeriodTypes, ["mensal"]);
+assert.deepEqual(legacy.listenPeriodModesByType, { mensal: ["mes_anterior"] });
+let multi = toggleDestinationListenType({ ...existing, ...legacy, base }, "periodo_especifico", true);
+multi.listenPeriodModesByType.periodo_especifico = ["semana_atual"];
+const multiHtml = render(multi);
+for (const text of ["Arquivo mensal", "Arquivo por periodo", "Mensal:", "Periodo:", "Mes anterior", "Semana atual"]) {
+  assert.ok(multiHtml.includes(text), `Multiple listeners missing: ${text}`);
+}
+assert.ok(!multiHtml.includes("Arquivo anual"));
+assert.ok(!multiHtml.includes("Arquivo diario"));
+const multiReopened = buildDestinationFormFromRule(serializeDestinationForm(multi, "fixture"));
+assert.deepEqual(multiReopened.listenPeriodTypes, ["mensal", "periodo_especifico"]);
+assert.deepEqual(multiReopened.listenPeriodModesByType, { mensal: ["mes_anterior"], periodo_especifico: ["semana_atual"] });
+assert.deepEqual(normalizeDestinationListeners(multiReopened, meta).listenPeriodModesByType, multi.listenPeriodModesByType);
+const removed = toggleDestinationListenType(multi, "periodo_especifico", false);
+assert.deepEqual(removed.listenPeriodModesByType, { mensal: ["mes_anterior"] });
+assert.deepEqual(toggleDestinationListenType(removed, "mensal", false), removed);
+const all = toggleDestinationListenType(multi, "todos", true);
+assert.deepEqual(all.listenPeriodTypes, ["todos"]);
+assert.deepEqual(all.listenPeriodModesByType, {});
+const changedBase = normalizeDestinationListeners({ ...multi, base: "other" }, { ...meta, listen_period_options_by_base: { other: [listenOptions[0], listenOptions[1]] } });
+assert.deepEqual(changedBase.listenPeriodTypes, ["todos"]);
+assert.deepEqual(changedBase.listenPeriodModesByType, {});
+console.log("Extrator UI: multiple listeners, independent modes, templates, save/reopen, legacy editing and selection changes passed.");

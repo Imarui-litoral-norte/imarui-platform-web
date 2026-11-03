@@ -22,8 +22,8 @@ export function buildDestinationDefaultForm(destinationMeta) {
     senha: "",
     caminho: "",
     enabled: true,
-    listenPeriodType: firstListenOption,
-    listenPeriodModes: [],
+    listenPeriodTypes: [firstListenOption],
+    listenPeriodModesByType: {},
     prefixo: defaultRule.prefixo || "",
     sufixo: defaultRule.sufixo || "",
     includeRotina: Boolean(defaultRule.include_rotina),
@@ -62,8 +62,10 @@ export function buildDestinationFormFromRule(rule) {
     senha: "",
     caminho: rule.caminho || "",
     enabled: Boolean(rule.enabled),
-    listenPeriodType: rule.listen_period_type || "todos",
-    listenPeriodModes: rule.listen_period_modes || [],
+    listenPeriodTypes: rule.listen_period_types || [rule.listen_period_type || "todos"],
+    listenPeriodModesByType: rule.listen_period_modes_by_type || {
+      [rule.listen_period_type || "todos"]: rule.listen_period_modes || [],
+    },
     prefixo: rule.prefixo || "",
     sufixo: rule.sufixo || "",
     includeRotina: Boolean(rule.include_rotina),
@@ -98,8 +100,11 @@ export function serializeDestinationForm(form, password) {
     senha: password,
     caminho: form.caminho,
     enabled: form.enabled,
-    listen_period_type: form.listenPeriodType,
-    listen_period_modes: form.listenPeriodModes,
+    listen_period_types: form.listenPeriodTypes,
+    listen_period_modes_by_type: Object.fromEntries(
+      (form.listenPeriodTypes || []).filter((type) => type !== "todos")
+        .map((type) => [type, form.listenPeriodModesByType?.[type] || []]),
+    ),
     prefixo: form.prefixo,
     sufixo: form.sufixo,
     include_rotina: form.includeRotina,
@@ -126,6 +131,35 @@ export function serializeDestinationForm(form, password) {
     pasta_template_diario: form.pastaTemplateDiario,
     pasta_template_periodo: form.pastaTemplatePeriodo,
     pasta_template_sem_periodo: form.pastaTemplateSemPeriodo,
+  };
+}
+
+export function normalizeDestinationListeners(form, meta) {
+  const options = meta?.listen_period_options_by_base?.[form.base] || [];
+  const validTypes = new Set(options.map((option) => option.id));
+  const selected = [...new Set(form.listenPeriodTypes || ["todos"])].filter((type) => validTypes.has(type));
+  const types = selected.includes("todos") || !selected.length ? ["todos"] : selected;
+  return {
+    ...form,
+    listenPeriodTypes: types,
+    listenPeriodModesByType: Object.fromEntries(types.filter((type) => type !== "todos").map((type) => {
+      const validModes = new Set((meta?.listen_period_mode_options_by_base?.[form.base]?.[type] || []).map((option) => option.id));
+      return [type, (form.listenPeriodModesByType?.[type] || []).filter((mode) => validModes.has(mode))];
+    })),
+  };
+}
+
+export function toggleDestinationListenType(form, type, checked) {
+  const current = form.listenPeriodTypes || ["todos"];
+  const types = type === "todos" ? ["todos"] : checked
+    ? [...new Set([...current.filter((item) => item !== "todos"), type])]
+    : current.filter((item) => item !== type);
+  if (!types.length) return form;
+  return {
+    ...form,
+    listenPeriodTypes: types,
+    listenPeriodModesByType: Object.fromEntries(types.filter((item) => item !== "todos")
+      .map((item) => [item, form.listenPeriodModesByType?.[item] || []])),
   };
 }
 

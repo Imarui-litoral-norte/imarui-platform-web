@@ -29,10 +29,10 @@ for (const mode of ["ano_atual", "ano_anterior", "ano_referencia"]) {
 const form = destinations.buildDestinationDefaultForm({});
 assert.equal(form.arquivoTemplateAnual, "{ano}");
 assert.equal(form.pastaTemplateAnual, "{ano}");
-const payload = destinations.serializeDestinationForm({ ...form, caminho: "D:\\Reports", listenPeriodType: "anual", listenPeriodModes: ["ano_anterior"] }, "fixture");
+const payload = destinations.serializeDestinationForm({ ...form, caminho: "D:\\Reports", listenPeriodTypes: ["anual"], listenPeriodModesByType: { anual: ["ano_anterior"] } }, "fixture");
 const hydrated = destinations.buildDestinationFormFromRule(payload);
-assert.equal(hydrated.listenPeriodType, "anual");
-assert.deepEqual(hydrated.listenPeriodModes, ["ano_anterior"]);
+assert.deepEqual(hydrated.listenPeriodTypes, ["anual"]);
+assert.deepEqual(hydrated.listenPeriodModesByType, { anual: ["ano_anterior"] });
 assert.equal(hydrated.arquivoTemplateAnual, "{ano}");
 assert.equal(destinations.buildDestinationPreviewPath(hydrated, "anual"), "D:\\Reports\\2026\\2026.csv");
 assert.equal(destinations.buildDestinationPreviewPath({ ...hydrated, pastaTemplateAnual: "", arquivoTemplateAnual: "{data_inicial}__{data_final}" }, "anual"), "D:\\Reports\\01_01_2026__31_12_2026.csv");

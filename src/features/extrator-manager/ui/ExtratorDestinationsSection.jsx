@@ -17,6 +17,7 @@ import {
   ExtratorActionButton as ActionButton,
   ExtratorSectionCard as SectionCard,
 } from "@/features/extrator-manager/ui/ExtratorPageShell";
+import { toggleDestinationListenType } from "@/features/extrator-manager/lib/extratorDestinations";
 import { usePaginatedItems } from "@/features/extrator-manager/model/usePaginatedItems";
 
 const DESTINATION_TEMPLATE_KINDS = [
@@ -79,43 +80,38 @@ function normalizeTokenSearch(value) {
     .toLowerCase();
 }
 
-function getVisibleTemplateKinds(listenPeriodType) {
-  if (!listenPeriodType || listenPeriodType === "todos") {
+function getVisibleTemplateKinds(listenPeriodTypes) {
+  if (!listenPeriodTypes?.length || listenPeriodTypes.includes("todos")) {
     return DESTINATION_TEMPLATE_KINDS;
   }
-
-  const templateKey = LISTEN_PERIOD_TEMPLATE_KEY[listenPeriodType];
-  if (!templateKey) {
-    return DESTINATION_TEMPLATE_KINDS;
-  }
-
-  return DESTINATION_TEMPLATE_KINDS.filter(
-    (templateKind) => templateKind.templateKey === templateKey,
-  );
+  const keys = new Set(listenPeriodTypes.map((type) => LISTEN_PERIOD_TEMPLATE_KEY[type]));
+  return DESTINATION_TEMPLATE_KINDS.filter((kind) => keys.has(kind.templateKey));
 }
 
 function DestinationListenModeFields({
   form,
   modeOptions,
+  periodType,
+  periodLabel,
   setForm,
 }) {
-  if (form.listenPeriodType === "todos" || !modeOptions.length) {
+  if (!modeOptions.length) {
     return null;
   }
 
-  const selectedModes = form.listenPeriodModes || [];
+  const selectedModes = form.listenPeriodModesByType?.[periodType] || [];
   const listensAnyMode = selectedModes.length === 0;
 
   function toggleSpecificMode(modeId, checked) {
     setForm((currentForm) => {
-      const currentModes = currentForm.listenPeriodModes || [];
+      const currentModes = currentForm.listenPeriodModesByType?.[periodType] || [];
       const nextModes = checked
         ? [...new Set([...currentModes, modeId])]
         : currentModes.filter((item) => item !== modeId);
 
       return {
         ...currentForm,
-        listenPeriodModes: nextModes,
+        listenPeriodModesByType: { ...currentForm.listenPeriodModesByType, [periodType]: nextModes },
       };
     });
   }
@@ -123,7 +119,7 @@ function DestinationListenModeFields({
   return (
     <div className="md:col-span-2 rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4">
       <p className="text-sm font-semibold text-[var(--shell-text)]">
-        Modos de calculo aceitos
+        Modos de calculo aceitos — {periodLabel}
       </p>
       <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">
         Deixe qualquer modo marcado para manter uma escuta ampla, ou selecione
@@ -136,9 +132,10 @@ function DestinationListenModeFields({
           onChange={(event) =>
             setForm((currentForm) => ({
               ...currentForm,
-              listenPeriodModes: event.target.checked
-                ? []
-                : [modeOptions[0]?.id].filter(Boolean),
+              listenPeriodModesByType: {
+                ...currentForm.listenPeriodModesByType,
+                [periodType]: event.target.checked ? [] : [modeOptions[0]?.id].filter(Boolean),
+              },
             }))
           }
         />
@@ -522,13 +519,8 @@ export default function ExtratorDestinationsSection({
   const templateTokenOptions =
     destinationsPayload?.destination_meta?.template_token_options || [];
   const visibleTemplateKinds = getVisibleTemplateKinds(
-    destinationForm.listenPeriodType,
+    destinationForm.listenPeriodTypes,
   );
-  const selectedListenModeOptions =
-    destinationsPayload?.destination_meta
-      ?.listen_period_mode_options_by_base?.[destinationForm.base]?.[
-        destinationForm.listenPeriodType
-      ] || [];
 
   return (
           <div className="space-y-4">
@@ -576,12 +568,8 @@ export default function ExtratorDestinationsSection({
                       setDestinationForm((currentForm) => ({
                         ...currentForm,
                         base: value,
-                        listenPeriodType:
-                          destinationsPayload?.destination_meta
-                            ?.listen_period_options_by_base?.[
-                            value
-                          ]?.[0]?.id || "todos",
-                        listenPeriodModes: [],
+                        listenPeriodTypes: ["todos"],
+                        listenPeriodModesByType: {},
                       }))
                     }
                     options={destinationsPayload?.destination_meta?.base_options || []}
@@ -599,29 +587,37 @@ export default function ExtratorDestinationsSection({
                     }
                   />
                 </FormField>
-                <FormField label="Escuta de periodo">
-                  <SelectInput
-                    value={destinationForm.listenPeriodType}
-                    onChange={(event) =>
-                      setDestinationForm((currentForm) => ({
-                        ...currentForm,
-                        listenPeriodType: event.target.value,
-                        listenPeriodModes: [],
-                      }))
-                    }
-                  >
-                    {selectedDestinationListenOptions.map((option) => (
-                      <option key={option.id} value={option.id}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </SelectInput>
-                </FormField>
-                <DestinationListenModeFields
-                  form={destinationForm}
-                  modeOptions={selectedListenModeOptions}
-                  setForm={setDestinationForm}
-                />
+                <div className="md:col-span-2">
+                  <fieldset className="rounded-2xl border border-[color:var(--shell-line)] p-4">
+                    <legend className="px-1 text-sm font-semibold">Escuta de periodo</legend>
+                    <p className="mb-3 text-xs text-[var(--shell-muted)]">
+                      Selecione um ou mais tipos. Todas as atualizacoes aceita qualquer tipo de periodo.
+                    </p>
+                    <div className="flex flex-wrap gap-x-6 gap-y-3">
+                      {selectedDestinationListenOptions.map((option) => (
+                        <CheckboxField
+                          key={option.id}
+                          value={option.id}
+                          label={option.label}
+                          checked={destinationForm.listenPeriodTypes.includes(option.id)}
+                          disabled={destinationForm.listenPeriodTypes.length === 1 && destinationForm.listenPeriodTypes.includes(option.id)}
+                          onChange={(event) => setDestinationForm((current) =>
+                            toggleDestinationListenType(current, option.id, event.target.checked))}
+                        />
+                      ))}
+                    </div>
+                  </fieldset>
+                </div>
+                {destinationForm.listenPeriodTypes.filter((type) => type !== "todos").map((type) => (
+                  <DestinationListenModeFields
+                    key={type}
+                    form={destinationForm}
+                    periodType={type}
+                    periodLabel={selectedDestinationListenOptions.find((option) => option.id === type)?.label || type}
+                    modeOptions={destinationsPayload?.destination_meta?.listen_period_mode_options_by_base?.[destinationForm.base]?.[type] || []}
+                    setForm={setDestinationForm}
+                  />
+                ))}
                 <div className="md:col-span-2">
                   <FormField label="Caminho base">
                     <TextInput
