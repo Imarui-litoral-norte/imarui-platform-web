@@ -116,11 +116,11 @@ export function createIiamApi(request) {
         throw new Error("Ação inválida.");
       return send(`${ROOT}/api/v1/admin/tenants/${uuid(id)}/${action}`, "POST");
     },
-    approve: (applicationId, tenantId, affiliation, identityKind) =>
+    approve: (applicationId, tenantId, affiliation, identityKind, corrections) =>
       send(
         `${ROOT}/api/v1/admin/identity-applications/${uuid(applicationId)}/approve`,
         "POST",
-        { tenantId: uuid(tenantId), affiliation, identityKind },
+        { tenantId: uuid(tenantId), affiliation, identityKind, ...(corrections ? { corrections } : {}) },
       ),
     reject: (applicationId, reason) => {
       if (!reason?.trim()) throw new Error("Informe o motivo da rejeição.");

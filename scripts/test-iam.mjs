@@ -9,6 +9,10 @@ await api.approve(application,identity,{type:"EMPLOYEE",registration:"BUSINESS-0
 assert.equal(call.path,`/api/iam/api/v1/admin/identity-applications/${application}/approve`);
 assert.deepEqual(call.body,{tenantId:identity,affiliation:{type:"EMPLOYEE",registration:"BUSINESS-007"},identityKind:"SERVICE"});
 assert.equal(call.authenticated,true);
+const corrections={type:"PERSON",fullName:"Corrected Name",cpf:"52998224725",email:"corrected@example.test",nickname:"corrected"};
+await api.approve(application,identity,{type:"EXTERNAL"},"PERSON",corrections);
+assert.deepEqual(call.body.corrections,corrections);
+
 await api.endSession(identity);assert.equal(call.method,"DELETE");assert.equal(call.path,`/api/iam/authentication/sessions/${identity}`);
 await api.endAdminSession(42);assert.equal(call.method,"PATCH");assert.equal(call.path,"/api/iam/authentication/admin/sessions/42/logout");
 await api.saveRolePermissions({id:3,version:7,password:"must-not-leak"},["logimarui-core.services.read"],"Reviewed access");

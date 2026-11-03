@@ -257,6 +257,13 @@ function Applications({ api, tenantId, onTenant, setKnown, onIdentity }) {
   );
 }
 
+function applicationFields(application) {
+  const common = [["nickname", true, 64], ["email", true, 254]];
+  if (application.type === "PERSON") return [...common, ["fullName", true, 150], ["cpf", true, 20], ["birthDate", false], ["phoneNumber", false, 30]];
+  if (application.type === "LEGAL_ENTITY") return [...common, ["legalName", true, 150], ["tradeName", false, 150], ["cnpj", true, 25]];
+  return [...common, ["name", true, 100], ["description", false, 500]];
+}
+
 function ApplicationReview({
   api,
   id,
@@ -443,12 +450,30 @@ function ApplicationReview({
                               tenant.id,
                               selection,
                               kind || application.type,
+                              Object.fromEntries([
+                                ["type", application.type],
+                                ...applicationFields(application).map(([name]) => [name,
+                                  String(values.get(`correction-${name}`) || "").trim() || null]),
+                              ]),
                             )
                           ).resolvedIdentityId;
                         }, "Solicitação aprovada. Continue pelo cadastro para gerar o convite.");
                         if (ok) onResolved(approvedIdentity);
                       }}
                     >
+                      <fieldset disabled={operation.busy}>
+                        <legend>Conferir e corrigir cadastro</legend>
+                        <p>As correções serão salvas junto com a aprovação.</p>
+                        <div className={s.formGrid}>
+                          {applicationFields(application).map(([name, required, maxLength]) => (
+                            <Field key={`${application.id}-${name}`} name={`correction-${name}`}
+                              label={name === "email" ? "E-mail" : name === "nickname" ? "Apelido" : detailLabels[name] || name}
+                              type={name === "email" ? "email" : name === "birthDate" ? "date" : "text"}
+                              defaultValue={application[name] ?? application.details?.[name] ?? ""}
+                              required={required} maxLength={maxLength} />
+                          ))}
+                        </div>
+                      </fieldset>
                       <div className={s.formGrid}>
                         <Select
                           label="Tipo aprovado"
