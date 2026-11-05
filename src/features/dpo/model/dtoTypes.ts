@@ -357,7 +357,7 @@ export interface DtoTrend {
   currentLabel: string;
 }
 
-export type DtoTrackingStatus = "current" | "dueSoon" | "overdue" | "never";
+export type DtoTrackingStatus = "current" | "dueSoon" | "risk" | "overdue" | "never";
 
 export interface DtoTrackedSubject {
   key: string;
@@ -384,6 +384,7 @@ export interface DtoTrackingSummary {
   total: number;
   current: number;
   dueSoon: number;
+  risk: number;
   overdue: number;
   never: number;
   newEmployees: number;
@@ -396,7 +397,7 @@ export type DtoTrackingMonthStatus =
   | "covered"
   | "due"
   | "missed"
-  | "realizedLate"
+  | "risk"
   | "notApplicable"
   | "future"
   | "outOfSnapshot"
@@ -440,7 +441,7 @@ export interface DtoTrackingMonthSummary {
   covered: number;
   due: number;
   missed: number;
-  realizedLate: number;
+  risk: number;
   future: number;
   outOfSnapshot: number;
   unknown: number;

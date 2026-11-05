@@ -234,11 +234,11 @@ export default function DtoPlanningPanel({ detail }: { detail: DtoFormDetail }) 
       .map((entry) => entry.targetKey),
   ), [calendarEntries]);
   const recommendations = tracking.subjects.filter((subject) =>
-    (subject.status === "never" || subject.status === "overdue" || subject.status === "dueSoon")
+    (subject.status === "never" || subject.status === "overdue" || (subject.status === "dueSoon" || subject.status === "risk"))
       && !plannedTargetKeys.has(subject.key),
   ).slice(0, 16);
   const applicableTargets = tracking.subjects.filter((subject) =>
-    subject.status === "never" || subject.status === "overdue" || subject.status === "dueSoon",
+    subject.status === "never" || subject.status === "overdue" || (subject.status === "dueSoon" || subject.status === "risk"),
   );
   const catalogEmployeeByKey = useMemo(() => new Map((catalog?.employees || []).map((employee) => [employee.key, employee])), [catalog?.employees]);
   const targetOptions = useMemo<DtoEmployeeSelectionOption[]>(() => applicableTargets.map((subject) => {
@@ -250,7 +250,7 @@ export default function DtoPlanningPanel({ detail }: { detail: DtoFormDetail }) 
       location: employee?.location || null,
       area: employee?.area || employee?.location || null,
       badgeLabel: dueLabel(subject),
-      badgeTone: subject.status === "dueSoon" ? "default" : "danger",
+      badgeTone: (subject.status === "dueSoon" || subject.status === "risk") ? "default" : "danger",
     };
   }), [applicableTargets, catalogEmployeeByKey]);
   const completed = monthOccurrences.filter((item) => item.status === "completed").length;
@@ -541,7 +541,7 @@ export default function DtoPlanningPanel({ detail }: { detail: DtoFormDetail }) 
               <button key={subject.key} type="button" onClick={() => recommendTarget(subject.key)} className="rounded-2xl border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-3 text-left hover:border-[color:var(--shell-accent)]">
                 <span className="block truncate text-sm font-semibold text-[var(--shell-text)]">{subject.name}</span>
                 <span className="mt-1 block truncate text-xs text-[var(--shell-muted)]">{subject.function || "Função não informada"}</span>
-                <span className="mt-2 inline-block"><DtoBadge tone={subject.status === "dueSoon" ? "default" : "danger"}>{subject.status === "never" ? "Nunca realizado" : subject.status === "overdue" ? "Em atraso" : "Prazo próximo"}</DtoBadge></span>
+                <span className="mt-2 inline-block"><DtoBadge tone={(subject.status === "dueSoon" || subject.status === "risk") ? "default" : "danger"}>{subject.status === "never" ? "Nunca realizado" : subject.status === "overdue" ? "Em atraso" : "Prazo próximo"}</DtoBadge></span>
               </button>
             ))}
           </div>

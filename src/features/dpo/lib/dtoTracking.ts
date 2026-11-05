@@ -61,7 +61,21 @@ function uniqueNames(values: string[]): Map<string, string> {
 }
 
 function statusRank(status: DtoTrackingStatus): number {
-  return { never: 0, overdue: 1, dueSoon: 2, current: 3 }[status];
+  return { never: 0, overdue: 1, risk: 2, dueSoon: 3, current: 4 }[status];
+}
+
+/** Shared fixed warning windows, including the due date itself in risk. */
+export function getDtoDeadlineStatus(daysUntilDue: number | null): DtoTrackingStatus {
+  if (daysUntilDue === null) return "never";
+  if (daysUntilDue < 0) return "overdue";
+  if (daysUntilDue <= 10) return "risk";
+  if (daysUntilDue <= 30) return "dueSoon";
+  return "current";
+}
+
+function calendarDaysBetween(end: Date, start: Date): number {
+  return Math.round((Date.UTC(end.getFullYear(), end.getMonth(), end.getDate()) -
+    Date.UTC(start.getFullYear(), start.getMonth(), start.getDate())) / DAY_IN_MS);
 }
 
 export function computeDtoTracking(
@@ -95,6 +109,7 @@ export function computeDtoTracking(
     total: 0,
     current: 0,
     dueSoon: 0,
+    risk: 0,
     overdue: 0,
     never: 0,
     newEmployees: 0,
@@ -135,7 +150,6 @@ export function computeDtoTracking(
       : tracking.excluded_collaborators.map((name) => normalizeSearchText(name)),
   );
   const today = startOfDay(now);
-  const dueSoonDays = Math.min(14, Math.max(3, Math.round(intervalDays * 0.2)));
 
   const subjects: DtoTrackedSubject[] = [];
   observed.forEach((name, key) => {
@@ -185,25 +199,8 @@ export function computeDtoTracking(
             tracking.new_employee_first_due_days as number,
           )
         : null;
-    const daysUntilDue = nextDueDate
-      ? Math.ceil((nextDueDate.getTime() - today.getTime()) / DAY_IN_MS)
-      : null;
-    const firstDueSoonDays = tracking.new_employee_first_due_days
-      ? Math.min(
-          14,
-          Math.max(3, Math.round(tracking.new_employee_first_due_days * 0.2)),
-        )
-      : dueSoonDays;
-    const effectiveDueSoonDays = firstRealizationPending
-      ? firstDueSoonDays
-      : dueSoonDays;
-    const status: DtoTrackingStatus = !lastRealization && !nextDueDate
-      ? "never"
-      : (daysUntilDue as number) < 0
-        ? "overdue"
-        : (daysUntilDue as number) <= effectiveDueSoonDays
-          ? "dueSoon"
-          : "current";
+    const daysUntilDue = nextDueDate ? calendarDaysBetween(nextDueDate, today) : null;
+    const status = getDtoDeadlineStatus(daysUntilDue);
     subjects.push({
       key,
       name,
@@ -236,6 +233,7 @@ export function computeDtoTracking(
   const current = subjects.filter((item) => item.status === "current").length;
   const dueSoon = subjects.filter((item) => item.status === "dueSoon").length;
   const overdue = subjects.filter((item) => item.status === "overdue").length;
+  const risk = subjects.filter((item) => item.status === "risk").length;
   const never = subjects.filter((item) => item.status === "never").length;
   const newEmployees = subjects.filter((item) => item.isNew).length;
   const lastRealization = subjects.reduce<Date | null>(
@@ -256,12 +254,13 @@ export function computeDtoTracking(
     total: subjects.length,
     current,
     dueSoon,
+    risk,
     overdue,
     never,
     newEmployees,
     realizationAdherence:
       subjects.length > 0
-        ? ((current + dueSoon) / subjects.length) * 100
+        ? ((current + dueSoon + risk) / subjects.length) * 100
         : null,
     lastRealization,
   };
@@ -412,17 +411,13 @@ function classifyMonth({
     : firstDue && firstDue >= snapshotStart
       ? firstDue
       : null;
-  const lateDue = dueDate && inMonth[0] && dueDate < inMonth[0]
-    ? dueDate
-    : null;
 
   if (inMonth.length) {
     const coverageRealization = inMonth.at(-1) || null;
     return {
       ...cell,
-      status: lateDue ? "realizedLate" : "realized",
-      dueDate: lateDue,
-      overdueDays: lateDue ? Math.floor((inMonth[0].getTime() - lateDue.getTime()) / DAY_IN_MS) : null,
+      status: "realized",
+      dueDate: coverageRealization ? addDays(coverageRealization, intervalDays) : null,
       coverageRealization,
       coverageStartDate: coverageRealization,
       coverageEndDate: coverageRealization ? addDays(coverageRealization, intervalDays) : null,
@@ -438,24 +433,17 @@ function classifyMonth({
       status: assumePendingWithoutHistory ? "missed" : "unknown",
     };
   }
-  if (dueDate > end) {
-    return {
-      ...cell,
-      status: previous ? "covered" : "future",
-      coverageRealization: previous,
-      coverageStartDate: previous,
-      coverageEndDate: previous ? dueDate : null,
-    };
-  }
-
-  const isPast = dueDate <= snapshotEnd;
+  const reference = end < snapshotEnd ? end : snapshotEnd;
+  const daysUntilDue = calendarDaysBetween(dueDate, reference);
+  const deadlineStatus = getDtoDeadlineStatus(daysUntilDue);
   return {
     ...cell,
-    status: isPast ? "missed" : "due",
+    status: deadlineStatus === "overdue" ? "missed"
+      : deadlineStatus === "risk" ? "risk"
+      : deadlineStatus === "dueSoon" ? "due"
+      : previous ? "covered" : "future",
     dueDate,
-    overdueDays: isPast
-      ? Math.max(0, Math.floor((snapshotEnd.getTime() - dueDate.getTime()) / DAY_IN_MS))
-      : null,
+    overdueDays: daysUntilDue < 0 ? -daysUntilDue : null,
     coverageRealization: previous,
     coverageStartDate: previous,
     coverageEndDate: previous ? dueDate : null,
@@ -494,9 +482,9 @@ export function computeDtoTrackingYear(
       area: employee?.area || null,
       months,
       realizations: dates.filter((date) => date.getFullYear() === year).length,
-      realizedMonths: months.filter((cell) => cell.status === "realized" || cell.status === "realizedLate").length,
+      realizedMonths: months.filter((cell) => cell.status === "realized").length,
       coveredMonths: months.filter((cell) => cell.status === "covered").length,
-      pendingMonths: months.filter((cell) => cell.status === "due" || cell.status === "missed").length,
+      pendingMonths: months.filter((cell) => cell.status === "due" || cell.status === "risk" || cell.status === "missed").length,
     };
   });
   return { year, mode: current.mode, rows, availableYears: getDtoTrackingYears(detail) };
@@ -540,14 +528,17 @@ export function computeDtoTrackingMonthSummary(
   ).length;
   const covered = count("covered");
   const realized = count("realized");
-  const realizedLate = count("realizedLate");
+  const risk = count("risk");
+  const validCoverage = cells.filter((cell) =>
+    ["covered", "due", "risk"].includes(cell.status) && cell.coverageRealization !== null,
+  ).length;
   return {
-    year, month, applicable, realized, covered, realizedLate,
+    year, month, applicable, realized, covered, risk,
     due: count("due"),
     missed: count("missed"),
     future: count("future"),
     outOfSnapshot: count("outOfSnapshot"),
     unknown: count("unknown"),
-    coveragePercentage: applicable ? ((realized + realizedLate + covered) / applicable) * 100 : null,
+    coveragePercentage: applicable ? ((realized + validCoverage) / applicable) * 100 : null,
   };
 }

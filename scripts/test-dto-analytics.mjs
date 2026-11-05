@@ -165,7 +165,8 @@ const trackingSummary = tracking.computeDtoTracking(
 );
 assert.equal(trackingSummary.mode, "COLLABORATOR");
 assert.equal(trackingSummary.total, 3);
-assert.equal(trackingSummary.current, 1);
+assert.equal(trackingSummary.current, 0);
+assert.equal(trackingSummary.dueSoon, 1);
 assert.equal(trackingSummary.overdue, 1);
 assert.equal(trackingSummary.never, 1);
 assert.equal(Math.round(trackingSummary.realizationAdherence), 33);
@@ -202,7 +203,7 @@ const environmentTracking = tracking.computeDtoTracking(
 );
 assert.equal(environmentTracking.mode, "ENVIRONMENT");
 assert.equal(environmentTracking.total, 3);
-assert.equal(environmentTracking.current, 1);
+assert.equal(environmentTracking.dueSoon, 1);
 assert.equal(environmentTracking.overdue, 1);
 assert.equal(environmentTracking.never, 1);
 assert.equal(
@@ -241,7 +242,7 @@ const formEnvironmentTracking = tracking.computeDtoTracking(
 assert.equal(formEnvironmentTracking.configured, true);
 assert.equal(formEnvironmentTracking.environmentSource, "FORM");
 assert.equal(formEnvironmentTracking.total, 1);
-assert.equal(formEnvironmentTracking.current, 1);
+assert.equal(formEnvironmentTracking.dueSoon, 1);
 assert.equal(formEnvironmentTracking.subjects[0].name, "Armazém");
 assert.equal(formEnvironmentTracking.subjects[0].applications, 2);
 assert.equal(formEnvironmentTracking.subjects[0].source, "form");
@@ -356,7 +357,7 @@ const newEmployeeTracking = tracking.computeDtoTracking(
 assert.equal(newEmployeeTracking.newEmployees, 1);
 assert.equal(newEmployeeTracking.subjects[0].isNew, true);
 assert.equal(newEmployeeTracking.subjects[0].firstRealizationPending, true);
-assert.equal(newEmployeeTracking.subjects[0].status, "current");
+assert.equal(newEmployeeTracking.subjects[0].status, "dueSoon");
 assert.equal(
   newEmployeeTracking.subjects[0].nextDueDate.toISOString().slice(0, 10),
   "2026-10-10",
@@ -518,8 +519,8 @@ const historicalYear = tracking.computeDtoTrackingYear(historicalDetail, histori
 assert.deepEqual(historicalYear.availableYears, [2025, 2026]);
 const coveredRow = historicalYear.rows.find((row) => row.subject.key === "covered");
 assert.equal(coveredRow.months[7].status, "realized");
-assert.equal(coveredRow.months[8].status, "covered");
-assert.equal(coveredRow.months[9].status, "due");
+assert.equal(coveredRow.months[8].status, "due");
+assert.equal(coveredRow.months[9].status, "risk");
 assert.equal(coveredRow.months[7].realizations.length, 2);
 const lateRow = historicalYear.rows.find((row) => row.subject.key === "late");
 assert.equal(lateRow.months[7].status, "realized");
@@ -527,7 +528,9 @@ const newRow = historicalYear.rows.find((row) => row.subject.key === "new");
 assert.equal(newRow.months[4].status, "notApplicable");
 assert.equal(newRow.months[6].status, "missed");
 const monthSummary = tracking.computeDtoTrackingMonthSummary(historicalYear.rows, 2026, 8);
-assert.equal(monthSummary.covered, 2);
+assert.equal(monthSummary.covered, 0);
+assert.equal(monthSummary.due, 1);
+assert.equal(monthSummary.risk, 1);
 assert.equal(monthSummary.applicable, 3);
 assert.equal(monthSummary.coveragePercentage, (2 / 3) * 100);
 
@@ -558,22 +561,22 @@ function trackingFixture({ start = "2026-01-01", end = "2026-10-10", admission =
 const firstLate = trackingFixture({ start: "2026-06-01", admission: "2026-06-15", records: ["2026-08-05"] });
 const firstLateYear = tracking.computeDtoTrackingYear(firstLate.detail, firstLate.context, 2026);
 assert.equal(firstLateYear.rows[0].months[6].status, "missed");
-assert.equal(firstLateYear.rows[0].months[7].status, "realizedLate");
-assert.equal(firstLateYear.rows[0].months[7].dueDate.toISOString().slice(0, 10), "2026-07-15");
-assert.equal(firstLateYear.rows[0].months[7].overdueDays, 21);
+assert.equal(firstLateYear.rows[0].months[7].status, "realized");
+assert.equal(firstLateYear.rows[0].months[7].dueDate.toISOString().slice(0, 10), "2026-10-04");
+assert.equal(firstLateYear.rows[0].months[7].overdueDays, null);
 
 // B: a later realization begins a new cycle but never changes the missed month.
 const lateCycle = trackingFixture({ records: ["2026-05-15", "2026-08-05"] });
 const lateCycleYear = tracking.computeDtoTrackingYear(lateCycle.detail, lateCycle.context, 2026);
 assert.equal(lateCycleYear.rows[0].months[6].status, "missed");
-assert.equal(lateCycleYear.rows[0].months[7].status, "realizedLate");
+assert.equal(lateCycleYear.rows[0].months[7].status, "realized");
 
 // C: valid coverage ends at the actual next due date.
 const coverage = trackingFixture({ end: "2026-10-10", records: ["2026-08-15"] });
 const coverageYear = tracking.computeDtoTrackingYear(coverage.detail, coverage.context, 2026);
 assert.equal(coverageYear.rows[0].months[7].status, "realized");
-assert.equal(coverageYear.rows[0].months[8].status, "covered");
-assert.equal(coverageYear.rows[0].months[9].status, "due");
+assert.equal(coverageYear.rows[0].months[8].status, "due");
+assert.equal(coverageYear.rows[0].months[9].status, "risk");
 const expiredCoverage = trackingFixture({ end: "2026-10-31", records: ["2026-08-15"] });
 assert.equal(tracking.computeDtoTrackingYear(expiredCoverage.detail, expiredCoverage.context, 2026).rows[0].months[9].status, "missed");
 
@@ -679,3 +682,18 @@ assert.equal(tracking.getDtoTrackingRowBySubjectKey(duplicateRows, "123").months
 assert.equal(tracking.getDtoTrackingRowBySubjectKey(duplicateRows, "456").months[3].realizations.length, 1);
 
 console.log("DTO analytics, acompanhamento histórico e planejamento: cenários validados com sucesso.");
+
+// Fixed windows, including exact boundaries and late completion resetting its cycle.
+for (const [days, expected] of [[31, "current"], [30, "dueSoon"], [11, "dueSoon"], [10, "risk"], [1, "risk"], [0, "risk"], [-1, "overdue"], [null, "never"]]) {
+  assert.equal(tracking.getDtoDeadlineStatus(days), expected);
+}
+for (const [date, days, status] of [["2026-09-03",31,"current"], ["2026-09-04",30,"dueSoon"], ["2026-09-24",10,"risk"], ["2026-10-04",0,"risk"], ["2026-10-05",-1,"overdue"]]) {
+  const subject = tracking.computeDtoTracking(firstLate.detail, firstLate.context, formatters.parseDtoDate(date)).subjects[0];
+  assert.equal(subject.daysUntilDue, days);
+  assert.equal(subject.status, status);
+}
+
+for (const [end, month, expected] of [["2026-08-30",7,"realized"], ["2026-09-10",8,"due"], ["2026-09-20",8,"risk"], ["2026-09-30",8,"risk"], ["2026-10-01",9,"missed"]]) {
+  const fixture = trackingFixture({end, records: ["2026-08-01"]});
+  assert.equal(tracking.computeDtoTrackingYear(fixture.detail, fixture.context, 2026).rows[0].months[month].status, expected);
+}

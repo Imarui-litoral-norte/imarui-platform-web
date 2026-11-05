@@ -28,6 +28,8 @@ import {
 import type {
   DtoFormDetail,
   DtoTrackingContext,
+  DtoTrackingStatus,
+  DtoTrackedSubject,
   DtoTrackingMonthCell,
   DtoTrackingMonthStatus,
   DtoTrackingYearRow,
@@ -52,19 +54,19 @@ const MONTHS = [
 ];
 const STATUS_LABELS: Record<DtoTrackingMonthStatus, string> = {
   realized: "Realizado",
-  realizedLate: "Realizado fora do prazo",
+  risk: "Risco",
   covered: "Coberto",
-  due: "Vencendo",
-  missed: "Pendente",
+  due: "Aviso",
+  missed: "Vencido",
   notApplicable: "Não aplicável",
   future: "Sem obrigação no período",
   outOfSnapshot: "Fora do snapshot",
   unknown: "Histórico insuficiente",
 };
 const STATUS_COLORS: Record<DtoTrackingMonthStatus, string> = {
-  realized: "#0f9b8e",
-  realizedLate: "#e67932",
-  covered: "#70c9c0",
+  realized: "#16a34a",
+  risk: "#e67932",
+  covered: "#16a34a",
   due: "#d99a18",
   missed: "#dc4f4f",
   notApplicable: "#64748b",
@@ -74,7 +76,7 @@ const STATUS_COLORS: Record<DtoTrackingMonthStatus, string> = {
 };
 const STATUS_ORDER: DtoTrackingMonthStatus[] = [
   "realized",
-  "realizedLate",
+  "risk",
   "covered",
   "due",
   "missed",
@@ -133,12 +135,10 @@ function cellDescription(cell: DtoTrackingMonthCell): string {
     cell.coverageEndDate
   )
     return `Coberto pela realização de ${formatDtoDate(cell.coverageRealization)} até ${formatDtoDate(cell.coverageEndDate)}.`;
-  if (cell.status === "due" && cell.dueDate)
+  if ((cell.status === "due" || cell.status === "risk") && cell.dueDate)
     return `Prazo vence em ${formatDtoDate(cell.dueDate)}.`;
   if (cell.status === "missed" && cell.dueDate)
     return `Prazo venceu em ${formatDtoDate(cell.dueDate)} sem realização.`;
-  if (cell.status === "realizedLate" && cell.dueDate)
-    return "A realização ocorreu após o vencimento conhecido.";
   return STATUS_LABELS[cell.status];
 }
 function FilterDialog({
@@ -362,13 +362,25 @@ function FilterChips({
     </div>
   );
 }
-function CurrentStatusTable({ rows }: { rows: DtoTrackingYearRow[] }) {
+const DEADLINE_STYLES: Record<DtoTrackingStatus, { label: string; color: string; background: string }> = {
+  current: { label: "No prazo", color: "#16a34a", background: "rgba(22,163,74,0.14)" },
+  dueSoon: { label: "Aviso", color: "#d99a18", background: "rgba(217,154,24,0.14)" },
+  risk: { label: "Risco", color: "#e67932", background: "rgba(230,121,50,0.14)" },
+  overdue: { label: "Vencido", color: "#dc4f4f", background: "rgba(220,79,79,0.14)" },
+  never: { label: "Sem realização / prazo desconhecido", color: "#94a3b8", background: "rgba(148,163,184,0.10)" },
+};
+function CurrentStatusTable({ rows, subjects }: { rows: DtoTrackingYearRow[]; subjects: DtoTrackedSubject[] }) {
+  const currentByKey = new Map(subjects.map((subject) => [subject.key, subject]));
   return (
     <DtoPanel className="overflow-hidden p-5 sm:p-6">
       <Typography variant="overline">Situação atual detalhada</Typography>
       <Typography as="h2" variant="cardTitle" className="mt-2">
         População atual do acompanhamento
       </Typography>
+      <p className="mt-3 text-xs text-[var(--shell-muted)]">
+        No prazo: mais de 30 dias · Aviso: 11 a 30 dias · Risco: 0 a 10 dias · Vencido: prazo ultrapassado.
+        Dias negativos indicam atraso. Referência: data de hoje.
+      </p>
       <div className="mt-5 overflow-x-auto">
         <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="border-b border-[color:var(--shell-line)] text-xs uppercase tracking-wide text-[var(--shell-muted)]">
@@ -379,42 +391,46 @@ function CurrentStatusTable({ rows }: { rows: DtoTrackingYearRow[] }) {
               <th className="pb-3 pr-4">Situação atual</th>
               <th className="pb-3 pr-4">Realizações</th>
               <th className="pb-3 pr-4">Última realização</th>
-              <th className="pb-3">Próximo prazo</th>
+              <th className="pb-3 pr-4">Próximo prazo</th>
+              <th className="pb-3">Dias para vencer</th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.subject.key}
+            {rows.map((row) => {
+              const subject = currentByKey.get(row.subject.key) || row.subject;
+              const status = DEADLINE_STYLES[subject.status];
+              return <tr
+                key={subject.key}
+                style={{ backgroundColor: status.background, borderLeft: `4px solid ${status.color}` }}
                 className="border-b border-[color:var(--shell-line)] last:border-0"
               >
                 <td className="py-3 pr-4 font-semibold text-[var(--shell-text)]">
-                  {row.subject.name}
+                  {subject.name}
                 </td>
-                <td className="py-3 pr-4">{row.subject.function || "—"}</td>
+                <td className="py-3 pr-4">{subject.function || "—"}</td>
                 <td className="py-3 pr-4">
-                  {formatDtoDate(row.subject.admissionDate)}
-                </td>
-                <td className="py-3 pr-4">
-                  {row.subject.status === "current"
-                    ? "Em dia"
-                    : row.subject.status === "dueSoon"
-                      ? "Vencendo"
-                      : row.subject.status === "overdue"
-                        ? "Pendente"
-                        : "Sem realização"}
+                  {formatDtoDate(subject.admissionDate)}
                 </td>
                 <td className="py-3 pr-4">
-                  {formatDtoNumber(row.subject.applications)}
+                  <span className="inline-flex items-center gap-2 font-semibold">
+                    <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: status.color }} />
+                    {status.label}
+                  </span>
                 </td>
                 <td className="py-3 pr-4">
-                  {formatDtoDate(row.subject.lastRealization)}
+                  {formatDtoNumber(subject.applications)}
                 </td>
-                <td className="py-3">
-                  {formatDtoDate(row.subject.nextDueDate)}
+                <td className="py-3 pr-4">
+                  {formatDtoDate(subject.lastRealization)}
                 </td>
-              </tr>
-            ))}
+                <td className="py-3 pr-4">
+                  {formatDtoDate(subject.nextDueDate)}
+                </td>
+                <td className="py-3 font-semibold tabular-nums">
+                  {subject.daysUntilDue === null ? "—" : formatDtoNumber(subject.daysUntilDue)}
+                </td>
+              </tr>;
+            })}
           </tbody>
         </table>
       </div>
@@ -587,7 +603,7 @@ export default function DtoTrackingPanel({
   const pieOption: EChartsOption = {
     color: [
       STATUS_COLORS.realized,
-      STATUS_COLORS.realizedLate,
+      STATUS_COLORS.risk,
       STATUS_COLORS.covered,
       STATUS_COLORS.due,
       STATUS_COLORS.missed,
@@ -601,10 +617,10 @@ export default function DtoTrackingPanel({
         center: ["50%", "43%"],
         data: [
           { name: "Realizados", value: summary.realized },
-          { name: "Realizados fora do prazo", value: summary.realizedLate },
+          { name: "Risco", value: summary.risk },
           { name: "Cobertos", value: summary.covered },
-          { name: "Vencendo", value: summary.due },
-          { name: "Pendentes", value: summary.missed },
+          { name: "Aviso", value: summary.due },
+          { name: "Vencidos", value: summary.missed },
         ],
       },
     ],
@@ -689,7 +705,7 @@ export default function DtoTrackingPanel({
       if (index < 0) return;
       const value = computeDtoTrackingMonthSummary(filteredRows, year, index);
       setHoverInfo(
-        `${MONTHS[index]}/${year}: ${value.applicable} aplicáveis, ${value.realized} realizados, ${value.realizedLate} realizados fora do prazo, ${value.covered} cobertos, ${value.due} vencendo, ${value.missed} pendentes e ${formatDtoPercentage(value.coveragePercentage)} de cobertura.`,
+        `${MONTHS[index]}/${year}: ${value.applicable} aplicáveis, ${value.realized} realizados, ${value.risk} em risco, ${value.covered} cobertos, ${value.due} em aviso, ${value.missed} pendentes e ${formatDtoPercentage(value.coveragePercentage)} de cobertura.`,
       );
       return;
     }
@@ -750,7 +766,7 @@ export default function DtoTrackingPanel({
         <DtoMetricCard
           label="Realizados"
           tone="accent"
-          value={formatDtoNumber(summary.realized + summary.realizedLate)}
+          value={formatDtoNumber(summary.realized)}
         />
         <DtoMetricCard
           label="Cobertos"
@@ -760,7 +776,7 @@ export default function DtoTrackingPanel({
         <DtoMetricCard
           label="Pendentes"
           tone={summary.missed ? "danger" : "default"}
-          value={formatDtoNumber(summary.missed + summary.due)}
+          value={formatDtoNumber(summary.missed + summary.due + summary.risk)}
         />
         <DtoMetricCard
           label="Cobertura"
@@ -825,7 +841,7 @@ export default function DtoTrackingPanel({
               em {MONTHS[month]}/{year}, de {formatDtoNumber(filteredRows.length)}{" "}
               {historicalSubjectLabel}. O gráfico considera somente os aplicáveis
               no mês; a matriz preserva o histórico anual e a tabela abaixo
-              representa a situação do período selecionado.
+              representa a situação atual, calculada na data de hoje.
             </p>
           </div>
         </div>
@@ -864,7 +880,7 @@ export default function DtoTrackingPanel({
           </aside>
         </DtoPanel>
       </div>
-      <CurrentStatusTable rows={filteredRows} />
+      <CurrentStatusTable rows={filteredRows} subjects={tracking.subjects} />
       {filtersOpen ? (
         <FilterDialog
           catalog={catalog}
