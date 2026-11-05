@@ -211,9 +211,17 @@ export default function DtoTrackingConfigurationPanel({
     );
   }, [applicableFunctions, functionCatalog]);
   const selectedApplicants = useMemo(() => {
-    const selected = new Set(applicantEmployeeKeys);
-    return (workforceCatalog?.employees || []).filter((employee) => selected.has(employee.key));
-  }, [applicantEmployeeKeys, workforceCatalog?.employees]);
+    const employees = new Map((workforceCatalog?.employees || []).map((employee) => [employee.key, employee]));
+    return applicantEmployeeKeys.map((key) => ({
+      key,
+      name: employees.get(key)?.name || (workforceCatalog
+        ? "Aplicador indisponível no cadastro"
+        : "Consultando aplicador…"),
+    }));
+  }, [applicantEmployeeKeys, workforceCatalog]);
+  const unavailableApplicants = workforceCatalog
+    ? applicantEmployeeKeys.filter((key) => !workforceCatalog.employees.some((employee) => employee.key === key))
+    : [];
   const associatedEmployees = useMemo(() => {
     const functions = new Set(applicableFunctions.map(normalizeSearchText));
     return (workforceCatalog?.employees || []).filter((employee) =>
@@ -851,6 +859,13 @@ export default function DtoTrackingConfigurationPanel({
         </div>
       </section>
 
+      {unavailableApplicants.length > 0 ? (
+        <p role="alert" className="mt-3 text-sm text-[var(--shell-danger)]">
+          {unavailableApplicants.length} aplicador(es) selecionado(s) não existem mais no cadastro.
+          Remova os vínculos indisponíveis acima e selecione novamente a pessoa, se necessário, antes de salvar.
+        </p>
+      ) : null}
+
       <DtoEmployeeSelectionDialog
         open={applicantPickerOpen}
         eyebrow="Equipe aplicadora"
@@ -909,6 +924,8 @@ export default function DtoTrackingConfigurationPanel({
           tone="accent"
           disabled={
             saving ||
+            functionCatalogStatus !== "ready" ||
+            unavailableApplicants.length > 0 ||
             !hasPopulationSource ||
             !dateFieldKey ||
             !intervalValid ||
