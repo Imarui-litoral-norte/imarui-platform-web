@@ -7,7 +7,10 @@ import { filterMapGroups, formatDateTime, groupByMap, hasLiveRows, paginateMapGr
   searchMapGroups, shouldPollJourney,
   type LiveScope } from "../lib/journeyPresentation";
 import type { AnalysisRole, Indicator, JourneyItem, JourneyQuery, PeriodResponse } from "../model/types";
+import JourneyDateCalendar from "./JourneyDateCalendar";
 import JourneyAnalysis from "./JourneyAnalysis";
+import JourneyFilterPanel from "./JourneyFilterPanel";
+import JourneyMapAudit from "./JourneyMapAudit";
 import { useJourneyHistory } from "./useJourneyHistory";
 import { JourneyMapDialog, JourneyMapRow } from "./JourneyMapRow";
 import { actionButtonClass, fieldClass, primaryButtonClass } from "./journeyControls";
@@ -47,7 +50,6 @@ export default function JourneyManager() {
   const [draftScope, setDraftScope] = useState<LiveScope>("all");
   const [activeDialog, setActiveDialog] = useState<"calendar" | "filters" | null>(null);
   const [dialogError, setDialogError] = useState<string | null>(null);
-  const [dateMode, setDateMode] = useState<"day" | "period">("day");
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"accompaniment" | "analysis">("accompaniment");
   const [analysisRole, setAnalysisRole] = useState<AnalysisRole>("motorista");
@@ -190,13 +192,12 @@ export default function JourneyManager() {
   function openDialog(kind: "calendar" | "filters") {
     setDraft(query);
     setDraftScope(scope);
-    setDateMode(query.from === query.to ? "day" : "period");
     setDialogError(null);
     setActiveDialog(kind);
   }
 
   function applyDate(from: string, periodEnd: string) {
-    const to = dateMode === "day" ? from : periodEnd;
+    const to = periodEnd;
     if (!from || !to || to < from) { setDialogError("A data final deve ser igual ou posterior à inicial."); return; }
     setActiveDialog(null);
     startLoad();
@@ -235,6 +236,7 @@ export default function JourneyManager() {
         {tab.label}</button>)}
     </div>
 
+    <div className={view === "analysis" ? "grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_19rem]" : ""}><div className="min-w-0">
     <section role="tabpanel" id="journey-panel" aria-labelledby={`journey-tab-${query.indicator}`} className="space-y-5">
       <div className="rounded-[26px] border border-[color:var(--shell-line)] bg-[var(--shell-surface)] p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -252,7 +254,7 @@ export default function JourneyManager() {
       {activeLoading && <p role="status" className="rounded-2xl border border-[color:var(--shell-line)] p-6">Carregando {view === "analysis" ? "análise" : "dados"} de Jornada…</p>}
       {activeError && <div role="alert" className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm"><p>{activeError}</p><button type="button" className={`${actionButtonClass} mt-3`} onClick={reload}>Tentar novamente</button></div>}
       {activeNotice && <p role="status" className="text-xs text-[var(--shell-muted)]">{activeNotice} Os dados anteriores continuam visíveis.</p>}
-      <div className="grid items-center gap-3 lg:grid-cols-[auto_minmax(20rem,1fr)_auto]">
+      {view !== "analysis" && <div className="grid items-center gap-3 lg:grid-cols-[auto_minmax(20rem,1fr)_auto]">
         <div role="status" className="text-sm text-[var(--shell-muted)]">
           {countLabel}
         </div>
@@ -270,8 +272,19 @@ export default function JourneyManager() {
           <button type="button" className={actionButtonClass} onClick={() => openDialog("filters")} aria-label="Abrir filtros"><ListFilter size={16} /> <span className="hidden sm:inline">Filtros</span></button>
         </div>
         <span className="text-sm text-[var(--shell-muted)] lg:text-right">{activeRefreshing ? "Atualizando snapshot… · " : ""}Snapshot: {formatDateTime(activeSnapshot)}</span>
-      </div>
+      </div>}
       {view === "analysis" && !analysis.loading && analysis.data && <JourneyAnalysis history={analysis.data}
+        infoControls={<><span role="status" className="text-xs text-[var(--shell-muted)]">{countLabel}</span>          <label className="relative min-w-40 flex-1 lg:max-w-xl">
+            <span className="sr-only">Buscar mapa, motorista, ajudante ou veículo</span>
+            <Search size={16} aria-hidden className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--shell-muted)]" />
+            <input type="search" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+              placeholder="Buscar mapa, equipe ou veículo" className={`${fieldClass} pl-9`} />
+          </label>
+<span className="text-xs text-[var(--shell-muted)]">Snapshot: {formatDateTime(activeSnapshot)}</span></>}
+        dateControl={<button type="button" className={actionButtonClass} onClick={() => openDialog("calendar")}
+            aria-label={`Selecionar dia ou período. Seleção atual: ${dateLabel}`} title={dateLabel}>
+            <CalendarDays size={16} /> <span className="hidden sm:inline">{dateLabel}</span>
+          </button>}
         indicator={query.indicator} role={effectiveRole} onRoleChange={setAnalysisRole} roleLocked={query.role !== "all"}
         reportFilters={reportFilters} onReportFiltersChange={setReportFilters} reportSort={reportSort} onReportSortChange={setReportSort} />}
       {view === "accompaniment" && !loading && !error && data && <>
@@ -293,35 +306,15 @@ export default function JourneyManager() {
           </div>
         </nav>}
       </>}
+      {view === "analysis" && !analysis.loading && analysis.data && <JourneyMapAudit
+        key={JSON.stringify([query, effectiveRole, search.trim(), scope])}
+        query={query} role={effectiveRole} search={search} scope={scope} refreshToken={analysis.data.snapshotAt} />}
       {selectedGroup && <JourneyMapDialog key={`${query.indicator}:${selectedGroup.key}`}
         group={selectedGroup} indicator={query.indicator} now={now}
         onClose={() => setSelectedMapKey(null)} />}
       {activeDialog === "calendar" && <JourneyQueryDialog title="Selecionar data" onClose={() => setActiveDialog(null)}>
-        <p className="text-sm text-[var(--shell-muted)]">Escolha um dia específico ou um período para consultar os mapas.</p>
-        <form className="mt-5 space-y-5" onSubmit={(event) => {
-          event.preventDefault();
-          const values = new FormData(event.currentTarget);
-          applyDate(String(values.get("from") ?? ""), String(values.get("to") ?? ""));
-        }}>
-          <fieldset className="flex flex-wrap gap-4 text-sm">
-            <legend className="mb-2 font-semibold">Tipo de consulta</legend>
-            <label className="inline-flex items-center gap-2"><input type="radio" name="journey-date-mode" checked={dateMode === "day"} onChange={() => setDateMode("day")} /> Dia específico</label>
-            <label className="inline-flex items-center gap-2"><input type="radio" name="journey-date-mode" checked={dateMode === "period"} onChange={() => setDateMode("period")} /> Período</label>
-          </fieldset>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-sm">{dateMode === "day" ? "Data" : "De"}
-              <input type="date" name="from" required className={`${fieldClass} mt-1`} value={draft.from} onChange={(event) => setField("from", event.target.value)} />
-            </label>
-            {dateMode === "period" && <label className="text-sm">Até
-              <input type="date" name="to" required min={draft.from} className={`${fieldClass} mt-1`} value={draft.to} onChange={(event) => setField("to", event.target.value)} />
-            </label>}
-          </div>
-          {dialogError && <p role="alert" className="text-sm text-[var(--shell-danger)]">{dialogError}</p>}
-          <div className="flex justify-end gap-2 border-t border-[color:var(--shell-line)] pt-4">
-            <button type="button" className={actionButtonClass} onClick={() => setActiveDialog(null)}>Cancelar</button>
-            <button type="submit" className={primaryButtonClass}>Aplicar data</button>
-          </div>
-        </form>
+        <JourneyDateCalendar from={query.from} to={query.to} onApply={applyDate} onCancel={() => setActiveDialog(null)} />
+        {dialogError && <p role="alert" className="mt-2 text-sm text-[var(--shell-danger)]">{dialogError}</p>}
       </JourneyQueryDialog>}
       {activeDialog === "filters" && <JourneyQueryDialog title="Filtros da Jornada" onClose={() => setActiveDialog(null)}>
         <p className="text-sm text-[var(--shell-muted)]">Refine os mapas e a equipe do período selecionado.</p>
@@ -365,6 +358,7 @@ export default function JourneyManager() {
         </form>
       </JourneyQueryDialog>}
     </section>
+    </div>{view === "analysis" && <JourneyFilterPanel query={query} onApply={(next) => { startLoad(); setQuery(next); }} />}</div>
   </main>;
 }
 

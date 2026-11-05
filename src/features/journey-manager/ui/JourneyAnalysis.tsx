@@ -125,7 +125,8 @@ function Stat({ label, value, detail, tone }: { label: string; value: string; de
   </div>;
 }
 
-export default function JourneyAnalysis({ history, indicator, role, onRoleChange, roleLocked, reportFilters, onReportFiltersChange, reportSort, onReportSortChange }: {
+export default function JourneyAnalysis({ infoControls, dateControl, history, indicator, role, onRoleChange, roleLocked, reportFilters, onReportFiltersChange, reportSort, onReportSortChange }: {
+  dateControl?: ReactNode; infoControls?: ReactNode;
   history: JourneyHistory; indicator: Indicator; role: AnalysisRole; onRoleChange: (role: AnalysisRole) => void; roleLocked: boolean;
   reportFilters: TeamReportFilters; onReportFiltersChange: (filters: TeamReportFilters) => void;
   reportSort: TeamReportSort; onReportSortChange: (sort: TeamReportSort) => void;
@@ -173,11 +174,13 @@ export default function JourneyAnalysis({ history, indicator, role, onRoleChange
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div><h2 className="flex items-center gap-2 text-lg font-semibold"><BarChart3 size={19} className="text-[var(--shell-accent)]" /> Análise de {indicator.toUpperCase()}</h2>
         <p className="mt-1 text-xs leading-5 text-[var(--shell-muted)]">Aderência = atingidos ÷ resultados fechados avaliáveis. Base: {unit}. Sem meta percentual fixa nesta visão.</p></div>
-      <div className="flex items-center gap-1 rounded-xl border border-[color:var(--shell-line)] p-1" aria-label="População da análise">
+      <div className="flex w-full flex-wrap items-center gap-3">{dateControl}<div className="flex items-center gap-1 rounded-xl border border-[color:var(--shell-line)] p-1" aria-label="População da análise">
         {(["motorista", "ajudante"] as const).map(option => <button key={option} type="button"
           className={role === option ? primaryButtonClass : actionButtonClass} aria-pressed={role === option}
           disabled={roleLocked && role !== option} onClick={() => onRoleChange(option)}><Users size={14} />{option === "motorista" ? "Motoristas" : "Ajudantes"}</button>)}
       </div>
+      {infoControls}
+    </div>
     </div>
     {roleLocked && <p className="text-xs text-[var(--shell-muted)]">A função está definida no filtro compartilhado. Selecione “Todos” em Filtros para alternar a população.</p>}
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

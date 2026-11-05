@@ -84,3 +84,53 @@ The backend's additive `team` projection retains official verdicts and numeric
 closed durations from the V2 readers. Older history responses without `team`
 show a refresh-core message. Live refresh includes pending report observations
 even when the shared expurge filter excludes them from the summary.
+
+## Map audit
+
+The bottom of each analytical indicator includes a server-paginated map audit
+(`GET /api/v1/journey/history/{indicator}/maps`, one-based pages, 1–100 rows).
+Selection, expurge, crew search, population, deduplication and analytical grain
+reuse the history service. Date plus map is the unique row key. A map may
+contribute several helper observations; it is never counted once per helper
+in a map-level summary. Pending/unavailable maps remain visible for inspection.
+
+Each row shows the full crew's driver name and distinct helper count, official
+TR departure/TI vehicle entry, decimal-hour TML/TR/TI/JL values for included
+participants, delivery count and selected-indicator expurge context. Different
+participant durations appear as a range; expanding the row shows all official
+per-person values and who contributes to the selection. Selected verdicts and
+expurge come from the original selection snapshot, not a later enrichment read.
+Tied conflicting source snapshots suppress ambiguous detail instead of choosing
+an arbitrary result. No missing duration or delivery count becomes zero.
+
+Delivery counts enrich the complete audit selection using the read-only database
+pool: LIVE uses `diretorio.v_03_11_40` by dt_entrega/mapa, historical maps use
+`diretorio.03_08_05` by data/mapa. Repeated delivery counts are not summed;
+conflicting counts are explicitly flagged. Enrichment reads retain the complete
+crew and use bounded monthly procedure calls. TR audit uses Ponto for the
+contextual TML/TI/JL. The audit does not write expurges or alter official KPIs.
+
+The audit's own base selector defaults to `evaluated_not_expurged`: explicit
+non-expurged facts with a closed, evaluable official outcome. The filter is
+applied before map grouping and server pagination; pending/unknown observations
+and unknown expurge flags cannot enter that base. The other options show all
+states without expurge or the complete shared selection. This selector changes
+only the audit list; the shared expurge control remains authoritative for charts.
+
+Column headers now expose Excel-style value selection, accent-insensitive option
+search, select-all, cancellation, clearing and ascending/descending sorting.
+Date and map are separate columns; vehicle shows the official code and plate.
+Facets are generated from the full audit selection after the other column
+filters, excluding the current column's own restriction. Filtering and sorting
+run before pagination and update the list's summary. Blanks are selectable and
+remain last in either sort direction. Numeric values sort numerically.
+The same `/maps` read endpoint also accepts POST with `{filters, sortBy,
+sortDirection}` to avoid URL limits for large checkbox selections; it performs
+no database writes. Whole-selection enrichment supplies the column options;
+only the requested page of detailed rows is returned to the browser.
+
+### Painel global da análise
+
+A análise usa um painel lateral com rolagem independente. Origem LIVE/histórico, tipo, justificativa e observações de expurgo, exclusões de veículos/matrículas e inclusão de matrículas são enviados como `viewFilters` para a seleção de fatos anterior às agregações. As opções são lidas do período completo pelo endpoint `history/{indicator}/filter-options`. A matrícula vazia usa `__blank__`; exclusões prevalecem sobre inclusões. Os campos textuais de expurgo usam correspondência parcial sem distinguir maiúsculas.
+
+As listas de exclusão manual são preferências locais deste navegador (`journey-manual-exclusions`) e são reutilizadas no rascunho do painel, entrando em vigor ao aplicar. Não escrevem expurgos na base operacional. A auditoria mantém sua seleção adicional de base e seus próprios filtros por coluna.

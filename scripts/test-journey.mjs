@@ -301,3 +301,37 @@ assert.equal(api.normalizeJourneyHistory({ ...history("2026-10-03", "2026-10-06"
 assert.throws(() => api.normalizeJourneyHistory({ ...history("2026-10-03", "2026-10-06"), team: [{ ...team[0], seconds: -1 }] }), /inválida/);
 assert.throws(() => api.normalizeJourneyHistory({ ...history("2026-10-03", "2026-10-06"), team: [{ ...team[0], journeyExceeded: "sim" }] }), /inválida/);
 console.log("Journey educators report: fleet/expurge filters, dates, means, JL coverage and contract checks passed");
+
+const audit = evaluate("src/features/journey-manager/lib/journeyAudit.ts");
+assert.equal(audit.auditHours(90000), "25,00 h");
+assert.equal(audit.auditHours(null), "—");
+assert.equal(audit.auditHours(-1), "—");
+const auditRow = { members: [
+  { included: true, ti: { ...result, seconds: 1800 } },
+  { included: true, ti: { ...result, seconds: 3600 } },
+  { included: false, ti: { ...result, seconds: 999999 } },
+] };
+assert.deepEqual(audit.auditDurations(auditRow, "ti"), { label: "0,50 h – 1,00 h", varied: true });
+assert.equal(audit.auditOutcome({ ...result, lifecycleStatus: "FINALIZADO", achieved: false }), "Não atingido");
+assert.equal(audit.auditOutcome(result), "Em andamento");
+assert.equal(audit.auditOutcome(null), "Sem resultado");
+const auditPath = api.buildJourneyAuditPath({ ...query, indicator: "tr" }, "ajudante", "João", "earlier", 2, 10);
+assert.ok(auditPath.startsWith("/api/v1/journey/history/tr/maps?"));
+assert.ok(auditPath.includes("populationRole=ajudante") && auditPath.includes("page=2") && auditPath.includes("pageSize=10"));
+assert.ok(!auditPath.includes("mode=") && !auditPath.includes("includePrevious="));
+assert.throws(() => api.normalizeJourneyAudit({}), /inválida/);
+console.log("Journey audit: decimal hours, participant ranges, outcomes and server pagination contract passed");
+
+assert.ok(api.buildJourneyAuditPath(query, "motorista", "", "all", 1, 25, "evaluated_not_expurged").includes("auditFilter=evaluated_not_expurged"));
+
+assert.equal(audit.auditColumns.length, 14);
+assert.ok(audit.auditColumns.some(column => column.key === "vehicle"));
+assert.deepEqual(audit.auditFilterOptions([{label:"João"},{label:"MARIA"}], "joao"), [{label:"João"}]);
+assert.deepEqual(audit.auditFilterOptions([{label:"João"},{label:"MARIA"}], " maria "), [{label:"MARIA"}]);
+console.log("Journey Excel filters: all columns and accent-insensitive option search passed");
+
+const filterOptions = [{value:"a",label:"Ana"},{value:"b",label:"Bruno"}];
+assert.equal(audit.auditSelectedValues(filterOptions, new Set(["a","b"]), ""), undefined);
+assert.deepEqual(audit.auditSelectedValues(filterOptions, new Set(["a","b"]), "ana"), ["a"]);
+assert.deepEqual(audit.auditSelectedValues(filterOptions, new Set(), "ana"), []);
+assert.deepEqual(audit.auditSelectedValues(filterOptions, new Set(["b"]), ""), ["b"]);

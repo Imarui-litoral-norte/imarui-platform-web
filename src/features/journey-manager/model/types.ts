@@ -139,6 +139,7 @@ export interface JourneyQuery {
   employeeCode: string;
   role: "all" | "motorista" | "ajudante";
   expurge: ExpurgeFilter;
+  viewFilters?: JourneyViewFilters;
 }
 
 export type JourneyResponse = PeriodResponse<TmlItem> | PeriodResponse<TrItem> |
@@ -166,3 +167,33 @@ export interface JourneyHistory {
   collaborators: JourneyCollaborator[]; previousYearDaily: JourneyDay[];
   team?: JourneyTeamObservation[];
 }
+
+export interface JourneyAuditMember {
+  employeeCode: number | null; employeeName: string | null; role: string | null; included: boolean;
+  tml: IndicatorResult | null; tr: IndicatorResult | null; ti: IndicatorResult | null; jl: IndicatorResult | null;
+  expurge: Expurge | null; conflictingSnapshots: boolean;
+}
+export interface JourneyAuditRow {
+  date: string; map: number; origin: string | null; snapshotAt: string | null;
+  driverNames: string[]; vehicles: string[]; helpers: number; departures: string[]; vehicleEntries: string[];
+  deliveries: { count: number | null; source: string; conflict: boolean };
+  contribution: JourneyCounts; members: JourneyAuditMember[];
+  cells: Record<string, { value: string; label: string; number: number | null }>;
+}
+export interface JourneyAudit {
+  from: string; to: string; indicator: Indicator; mode: JourneyMode; role: AnalysisRole;
+  snapshotAt: string | null; page: number; pageSize: number; totalElements: number; totalPages: number;
+  summary: JourneyCounts; items: JourneyAuditRow[]; unfilteredTotal: number;
+  facets: Record<string, { value: string; label: string; count: number }[]>;
+}
+
+export interface JourneyAuditTableQuery {
+  filters: Record<string, string[]>; sortBy: string; sortDirection: "asc" | "desc";
+}
+
+export interface JourneyViewFilters {
+ origin: "all" | "LIVE" | "HISTORICO";
+ excludedVehicles: string[]; excludedEmployees: string[]; includedEmployees: string[];
+ expurgeType: string; expurgeReason: string; expurgeObservation: string;
+}
+export type JourneyFilterOptions = Record<"vehicles" | "employees" | "types" | "reasons" | "observations", Record<string,string>>;
