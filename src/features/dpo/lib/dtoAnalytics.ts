@@ -96,7 +96,7 @@ export function filterDtoRecords(
     if (collaborator && normalizeSearchText(record.collaborator) !== collaborator) return false;
     if (manager && normalizeSearchText(record.manager) !== manager) return false;
     if (start || end) {
-      const date = parseDtoDate(record.date);
+      const date = parseDtoDate(record.historical_date || record.date);
       if (!date || (start && date < start) || (end && date > end)) return false;
     }
     if (
@@ -170,7 +170,7 @@ export function computeDtoMetrics(
     ignored += metrics.ignored;
     blank += metrics.blank;
     unmapped += metrics.unmapped;
-    const date = parseDtoDate(record.date);
+    const date = parseDtoDate(record.historical_date || record.date);
     if (date && (!lastApplication || date > lastApplication)) lastApplication = date;
     const collaborator = normalizeSearchText(record.collaborator);
     if (collaborator) collaborators.add(collaborator);
@@ -340,7 +340,7 @@ function timelineBucket(date: Date, granularity: Granularity) {
 }
 
 export function computeTimeline(records: DtoRecord[]): DtoTimelinePoint[] {
-  const dated = records.map((record) => ({ record, date: parseDtoDate(record.date) }))
+  const dated = records.map((record) => ({ record, date: parseDtoDate(record.historical_date || record.date) }))
     .filter((item): item is { record: DtoRecord; date: Date } => item.date !== null);
   if (!dated.length) return [];
   const granularity = timelineGranularity(dated.map((item) => item.date));

@@ -19,6 +19,7 @@ export interface FormManagerConfig {
   description: string;
   discoveryKey: string;
   routeKey: string;
+  supportsHistoricalDate?: boolean;
 }
 
 export const DTO_MANAGER_CONFIG: FormManagerConfig = {
@@ -61,6 +62,7 @@ export const SECURITY_TEMPLATES_MANAGER_CONFIG: FormManagerConfig = {
     "Análise gerencial das aplicações dos Gabaritos de Segurança, com foco em aderência, recorrências e oportunidades de atuação sobre os resultados negativos.",
   discoveryKey: "Gabarito-segurança",
   routeKey: "gabaritos-seguranca",
+  supportsHistoricalDate: true,
 };
 
 const FormManagerContext = createContext<FormManagerConfig>(DTO_MANAGER_CONFIG);

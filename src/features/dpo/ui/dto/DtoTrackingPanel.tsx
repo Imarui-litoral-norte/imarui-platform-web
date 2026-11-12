@@ -636,7 +636,7 @@ export default function DtoTrackingPanel({
         const row = filteredRows[point[1]];
         const cell = row?.months[point[0]];
         if (!row || !cell) return "";
-        return `<strong>${escapeHtml(row.subject.name)}</strong><br/>${MONTHS[cell.month]}/${cell.year}<br/><strong>${STATUS_LABELS[cell.status]}</strong><br/>Função: ${escapeHtml(row.subject.function || "—")}<br/>Local: ${escapeHtml(row.location || "—")}<br/>Setor: ${escapeHtml(row.area || "—")}<br/>Realizações do mês: ${escapeHtml(formatDates(cell.realizations))}<br/>Origem da cobertura: ${escapeHtml(formatDtoDate(cell.coverageRealization))}<br/>Vencimento: ${escapeHtml(formatDtoDate(cell.dueDate))}<br/>Fim da cobertura: ${escapeHtml(formatDtoDate(cell.coverageEndDate))}<br/>Dias de atraso: ${cell.overdueDays ?? "—"}<br/>${escapeHtml(cellDescription(cell))}`;
+        return `<strong>${escapeHtml(row.subject.name)}</strong><br/>${MONTHS[cell.month]}/${cell.year}<br/><strong>${cell.historical && cell.status === "realized" ? "Realizado histórico" : STATUS_LABELS[cell.status]}</strong><br/>Realizações do mês: ${escapeHtml(formatDates(cell.realizations))}<br/>${escapeHtml(cellDescription(cell))}`;
       },
     },
     grid: { top: 20, right: 22, bottom: 70, left: 180 },
@@ -662,10 +662,10 @@ export default function DtoTrackingPanel({
     },
     visualMap: {
       show: false,
-      pieces: STATUS_ORDER.map((status, index) => ({
+      pieces: [...STATUS_ORDER.map((status, index) => ({
         value: index,
         color: STATUS_COLORS[status],
-      })),
+      })), { value: STATUS_ORDER.length, color: "#8bd1a5" }],
     },
     dataZoom: [
       { type: "inside", yAxisIndex: 0 },
@@ -678,7 +678,7 @@ export default function DtoTrackingPanel({
           row.months.map((cell, cellMonth) => [
             cellMonth,
             rowIndex,
-            STATUS_ORDER.indexOf(cell.status),
+            cell.historical && cell.status === "realized" ? STATUS_ORDER.length : STATUS_ORDER.indexOf(cell.status),
           ]),
         ),
         label: { show: false },
@@ -866,6 +866,7 @@ export default function DtoTrackingPanel({
           <Typography variant="caption" className="mt-1">
             Clique em uma célula ou mês para alterar o período em foco.
           </Typography>
+          <div className="mt-2 text-xs text-[var(--shell-muted)]"><span style={{ color: "#8bd1a5" }}>■</span> Realização histórica</div>
           <DtoEChart
             ariaLabel={`Matriz anual para ${year}`}
             className="mt-3 h-[40rem] min-h-96"

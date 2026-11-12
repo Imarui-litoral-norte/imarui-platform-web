@@ -353,7 +353,7 @@ export default function DtoFormAnalysis({
                 />
               </div>
 
-              <DtoApplicationsHistory columns={detail.columns} records={filteredRecords} />
+              <DtoApplicationsHistory columns={detail.columns} records={filteredRecords} historicalDates={Boolean(config.supportsHistoricalDate)} />
             </>
           )}
         </>

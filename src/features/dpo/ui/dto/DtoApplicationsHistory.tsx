@@ -28,12 +28,13 @@ function getRecordKey(record: DtoRecord): string {
   return `${record.id}-${record.index}`;
 }
 
-function RecordSummary({ record }: { record: DtoRecord }) {
+function RecordSummary({ record, historicalDates }: { record: DtoRecord; historicalDates: boolean }) {
   const metrics = computeRecordMetrics(record);
+  const historical = historicalDates && Boolean(record.historical_date);
 
   return (
     <>
-      <div><span className="block text-xs text-[var(--shell-muted)]">Data</span><strong className="mt-1 block text-sm text-[var(--shell-text)]">{formatDtoDate(record.date)}</strong></div>
+      <div><span className="block text-xs text-[var(--shell-muted)]">{historical ? "Data histórica" : "Data"}</span><strong className={`mt-1 block text-sm ${historical ? "text-violet-700 dark:text-violet-300" : "text-[var(--shell-text)]"}`}>{formatDtoDate(historical ? record.historical_date : record.date)}{historical ? " · histórico" : ""}</strong></div>
       <div><span className="block text-xs text-[var(--shell-muted)]">Colaborador</span><strong className="mt-1 block break-words text-sm text-[var(--shell-text)]">{record.collaborator || "—"}</strong></div>
       <div><span className="block text-xs text-[var(--shell-muted)]">Aplicador</span><strong className="mt-1 block break-words text-sm text-[var(--shell-text)]">{record.manager || "—"}</strong></div>
       <div><span className="block text-xs text-[var(--shell-muted)]">Aderência</span><strong className="mt-1 block text-sm text-[var(--shell-accent)]">{formatDtoPercentage(metrics.adherence)}</strong></div>
@@ -45,13 +46,16 @@ function RecordSummary({ record }: { record: DtoRecord }) {
 export default function DtoApplicationsHistory({
   columns,
   records,
+  historicalDates = false,
 }: {
   columns: DtoColumn[];
   records: DtoRecord[];
+  historicalDates?: boolean;
 }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
+  const showHistoricalDates = historicalDates;
   const orderedRecords = useMemo(
     () =>
       [...records].sort((left, right) => {
@@ -105,7 +109,7 @@ export default function DtoApplicationsHistory({
             <table className="w-full border-collapse text-left text-sm">
               <thead className="bg-[var(--shell-surface-muted)] text-xs text-[var(--shell-muted)]">
                 <tr>
-                  <th className="px-4 py-3 font-semibold">Data</th>
+                  <th className="px-4 py-3 font-semibold">{showHistoricalDates ? "Data / histórico" : "Data"}</th>
                   <th className="px-4 py-3 font-semibold">Colaborador</th>
                   <th className="px-4 py-3 font-semibold">Aplicador</th>
                   <th className="px-4 py-3 font-semibold">Aderência</th>
@@ -121,7 +125,7 @@ export default function DtoApplicationsHistory({
                   return (
                     <Fragment key={key}>
                       <tr className="border-t border-[color:var(--shell-line)] bg-[var(--shell-surface)]">
-                        <td className="px-4 py-3 text-[var(--shell-text)]">{formatDtoDate(record.date)}</td>
+                        <td className={`px-4 py-3 ${showHistoricalDates && record.historical_date ? "bg-emerald-50 font-semibold text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200" : "text-[var(--shell-text)]"}`}>{showHistoricalDates && record.historical_date ? <>{formatDtoDate(record.historical_date)} <span className="text-xs">· histórico</span></> : formatDtoDate(record.date)}</td>
                         <td className="max-w-52 break-words px-4 py-3 text-[var(--shell-text)]">{record.collaborator || "—"}</td>
                         <td className="max-w-52 break-words px-4 py-3 text-[var(--shell-text)]">{record.manager || "—"}</td>
                         <td className="px-4 py-3 font-semibold text-[var(--shell-accent)]">{formatDtoPercentage(recordMetrics.adherence)}</td>
@@ -153,7 +157,7 @@ export default function DtoApplicationsHistory({
               const expanded = expandedKey === key;
               return (
                 <article key={key} className="rounded-[22px] border border-[color:var(--shell-line)] bg-[var(--shell-surface-muted)] p-4">
-                  <div className="grid grid-cols-2 gap-3"><RecordSummary record={record} /></div>
+                  <div className="grid grid-cols-2 gap-3"><RecordSummary record={record} historicalDates={showHistoricalDates} /></div>
                   <DtoButton className="mt-4 w-full" aria-expanded={expanded} onClick={() => toggleRecord(record)}>
                     {expanded ? "Fechar detalhes" : "Abrir detalhes"}
                     {expanded ? <ChevronUp aria-hidden="true" /> : <ChevronDown aria-hidden="true" />}

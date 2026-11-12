@@ -61,7 +61,7 @@ export default function DtoTrackingConfigurationPanel({
   configuration: DtoFormConfiguration;
   onSave: (update: DtoConfigurationUpdate) => Promise<unknown>;
 }) {
-  const { api } = useFormManagerConfig();
+  const { api, supportsHistoricalDate } = useFormManagerConfig();
   const current = configuration.tracking;
   const [trackingMode, setTrackingMode] = useState<DtoTrackingMode>(
     current.mode || "COLLABORATOR",
@@ -86,6 +86,7 @@ export default function DtoTrackingConfigurationPanel({
   const [dateFieldKey, setDateFieldKey] = useState(
     current.realization_date_field_key || inferredFieldKey(configuration, "DATE"),
   );
+  const [historicalDateFieldKey, setHistoricalDateFieldKey] = useState(current.historical_date_field_key || "");
   const [intervalDays, setIntervalDays] = useState(
     current.interval_days ? String(current.interval_days) : "",
   );
@@ -648,7 +649,7 @@ export default function DtoTrackingConfigurationPanel({
           >
             <option value="">Selecione um campo</option>
             {configuration.fields
-              .filter((field) => field.observation_status === "OBSERVED")
+              .filter((field) => field.observation_status === "OBSERVED" && field.key !== historicalDateFieldKey)
               .map((field) => (
                 <option key={field.key} value={field.key}>
                   {field.source_name}
@@ -676,6 +677,15 @@ export default function DtoTrackingConfigurationPanel({
               ))}
           </select>
         </label>
+
+        {supportsHistoricalDate ? <label className="text-xs font-semibold text-[var(--shell-muted)]">
+          Campo da data histórica (opcional)
+          <select value={historicalDateFieldKey} onChange={(event) => setHistoricalDateFieldKey(event.target.value)} className="mt-2 w-full rounded-xl border border-[color:var(--shell-line)] bg-[var(--shell-surface)] px-3 py-2.5 text-sm text-[var(--shell-text)]">
+            <option value="">Não usar data histórica</option>
+            {configuration.fields.filter((field) => field.observation_status === "OBSERVED" && field.key !== dateFieldKey && field.key !== rosterFieldKey).map((field) => <option key={field.key} value={field.key}>{field.source_name}{field.role === "DATE" ? " · data detectada" : ""}</option>)}
+          </select>
+          <span className="mt-1 block font-normal">Quando preenchida, esta data representa quando a realização ocorreu e orienta a análise temporal.</span>
+        </label> : null}
 
         <label className="text-xs font-semibold text-[var(--shell-muted)]">
           Dias entre realizações
@@ -940,6 +950,7 @@ export default function DtoTrackingConfigurationPanel({
               collaborator_source: collaboratorSource,
               roster_field_key: isFormEnvironment ? null : rosterFieldKey,
               realization_date_field_key: dateFieldKey,
+              ...(supportsHistoricalDate ? { historical_date_field_key: historicalDateFieldKey || null } : {}),
               interval_days: parsedInterval,
               applicable_functions: isEnvironment ? [] : applicableFunctions,
               applicant_employee_keys: applicantEmployeeKeys,

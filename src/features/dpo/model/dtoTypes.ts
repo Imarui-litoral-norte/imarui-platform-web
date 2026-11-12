@@ -61,6 +61,7 @@ export interface DtoRecord {
   id: string;
   index: number;
   date: string | null;
+  historical_date?: string | null;
   collaborator: string | null;
   manager: string | null;
   values: Record<string, unknown>;
@@ -99,6 +100,7 @@ export interface DtoTrackingConfiguration {
   collaborator_source: DtoCollaboratorSource | null;
   roster_field_key: string | null;
   realization_date_field_key: string | null;
+  historical_date_field_key?: string | null;
   interval_days: number | null;
   applicable_functions: string[];
   applicant_employee_keys: string[];

@@ -25,7 +25,7 @@ export default function DtoTrendChart({
   const option = useMemo<EChartsOption>(
     () => ({
       animationDuration: 450,
-      color: ["#2dd4bf", "#14b8a6"],
+      color: ["#a78bfa", "#14b8a6"],
       grid: { top: 20, right: 46, bottom: 32, left: 46 },
       tooltip: { trigger: "axis", axisPointer: { type: "cross" } },
       legend: {
@@ -63,7 +63,7 @@ export default function DtoTrendChart({
           yAxisIndex: 1,
           barMaxWidth: 34,
           data: timeline.map((point) => point.applications),
-          itemStyle: { color: "#5eead4", opacity: 0.45, borderRadius: [6, 6, 0, 0] },
+          itemStyle: { color: "#a78bfa", opacity: 0.65, borderRadius: [6, 6, 0, 0] },
           tooltip: { valueFormatter: (value) => formatDtoNumber(Number(value)) },
         },
         {
